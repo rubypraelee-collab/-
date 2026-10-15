@@ -187,4 +187,4 @@ if submitted:
   render_calendar_table(2026, 10, "ตุลาคม")
   render_calendar_table(2026, 11, "พฤศจิกายน")
   render_calendar_table(2026, 12, "ธันวาคม")
-  render_calendar_table(2027
+  render_calendar_table(2027, 1, "มกราคม")
