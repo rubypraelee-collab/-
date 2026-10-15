@@ -1,190 +1,112 @@
-import calendar
 import datetime
-import pandas as pd
-import streamlit as st
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import numpy as np
 
-st.set_page_config(
-    page_title="ระบบสร้างตารางรถไฟเลือกตั้งอัตโนมัติ (กกต.)",
-    page_icon="🚂",
-    layout="wide",
+# ตั้งค่าฟอนต์ภาษาไทย (ถ้าใช้งานบน Windows หรือ Google Colab ให้เลือกฟอนต์ที่รองรับภาษาไทย เช่น TH Sarabun PSK หรือ Cordia New)
+# ในตัวอย่างนี้ใช้โครงสร้างการวาดตารางและลูกศรชี้
+fig, ax = plt.subplots(figsize=(14, 8))
+
+# ซ่อนแกนพิกัดรอบนอก
+ax.axis("off")
+ax.set_xlim(0, 100)
+ax.set_ylim(0, 100)
+
+# วาดหัวข้อรายงาน
+ax.text(
+    50,
+    95,
+    "แผนการจัดการเลือกตั้งสมาชิกสภา ทต.บึงระมาณ เขตเลือกตั้งที่ 1",
+    fontsize=16,
+    weight="bold",
+    ha="center",
+)
+ax.text(
+    50,
+    90,
+    "วันที่ตำแหน่งว่างลง: 1 ต.ค. 2569 | วันเลือกตั้ง: 22 พ.ย. 2569",
+    fontsize=12,
+    ha="center",
+    color="gray",
 )
 
-st.title("🚂 ระบบสร้างตารางรถไฟเลือกตั้งอัตโนมัติ (รูปแบบทางการ กกต.)")
-st.markdown(
-    "กรอกข้อมูลด้านล่างเพื่อสร้างตารางรถไฟพร้อมคำนวณวันและแสดงเหตุการณ์ตามมาตราต่างๆ"
+# สร้างตารางจำลองเดือนตุลาคม 2569 (แถววันที่ 1-31)
+# วาดกรอบตารางหลัก
+rect_oct = plt.Rectangle((5, 60), 90, 20, linewidth=1.5, edgecolor="black", facecolor="none")
+ax.add_patch(rect_oct)
+
+ax.text(7, 75, "เดือนตุลาคม 2569", fontsize=12, weight="bold")
+
+# วาดเส้นแบ่งตารางวัน (1-31)
+for i in range(32):
+    x_pos = 15 + (i * 2.5)
+    ax.plot([x_pos, x_pos], [60, 80], color="black", linewidth=0.5)
+    if i < 31:
+        ax.text(x_pos + 1.25, 76, str(i + 1), fontsize=8, ha="center")
+
+# แถวตาราง: นับจากวันที่ตำแหน่งว่างลง
+ax.text(
+    6,
+    68,
+    "นับจากวันว่าง",
+    fontsize=9,
+    weight="bold",
+    verticalalignment="center",
+)
+for i in range(31):
+    x_pos = 15 + (i * 2.5) + 1.25
+    ax.text(x_pos, 68, str(i + 1), fontsize=8, ha="center", verticalalignment="center")
+
+# แถวตาราง: นับจากวันเลือกตั้ง (ถอยหลัง)
+ax.text(
+    6,
+    63,
+    "นับจากวันเลือกตั้ง",
+    fontsize=9,
+    weight="bold",
+    verticalalignment="center",
+)
+count_elec = 52
+for i in range(31):
+    x_pos = 15 + (i * 2.5) + 1.25
+    val = count_elec - i
+    ax.text(
+        x_pos,
+        63,
+        str(val),
+        fontsize=8,
+        ha="center",
+        verticalalignment="center",
+        color="red" if val == 0 else "black",
+    )
+
+# --- ส่วนของการวาดลูกศรชี้มาตราสำคัญอัตโนมัติ ---
+# ตัวอย่าง: ลูกศรชี้ "วันรับสมัครเลือกตั้ง (ม.12)" ที่วันที่ 26 ตุลาคม
+x_target = 15 + (25 * 2.5) + 1.25  # พิกัดวันที่ 26
+ax.annotate(
+    "วันรับสมัครเลือกตั้ง (ม.12)",
+    xy=(x_target, 60),
+    xytext=(x_target, 45),
+    arrowprops=dict(facecolor="blue", shrink=0.05, width=1.5, headwidth=6),
+    fontsize=9,
+    weight="bold",
+    ha="center",
+    color="blue",
 )
 
-with st.form("election_form"):
-  st.subheader("📌 กำหนดการเลือกตั้งหลัก")
-  col1, col2 = st.columns(2)
+# ตัวอย่าง: ลูกศรชี้ "วันเลือกตั้ง" ที่วันที่ 22 พฤศจิกายน (สมมติพิกัด)
+ax.annotate(
+    "วันเลือกตั้ง (ม.40)",
+    xy=(50, 60),
+    xytext=(50, 35),
+    arrowprops=dict(facecolor="orange", shrink=0.05, width=2, headwidth=8),
+    fontsize=10,
+    weight="bold",
+    ha="center",
+    color="orange",
+)
 
-  with col1:
-    org_name = st.text_input(
-        "ชื่อองค์กรปกครองส่วนท้องถิ่น",
-        value="เทศบาลตำบลบึงระมาณ เขตเลือกตั้งที่ 1 อ.บางระกำ",
-    )
-    vacancy_date = st.date_input(
-        "วันที่ตำแหน่งว่างลง", value=datetime.date(2026, 10, 1)
-    )
-    election_date = st.date_input(
-        "วันเลือกตั้ง", value=datetime.date(2026, 11, 22)
-    )
-
-  with col2:
-    start_reg = st.date_input(
-        "วันเริ่มต้นรับสมัคร", value=datetime.date(2026, 10, 26)
-    )
-    end_reg = st.date_input(
-        "วันสิ้นสุดรับสมัคร", value=datetime.date(2026, 10, 30)
-    )
-
-  submitted = st.form_submit_button("🚀 สร้างตารางรถไฟและกำหนดการอัตโนมัติ")
-
-if submitted:
-  st.success("สร้างตารางและคำนวณวันสำคัญเรียบร้อยแล้ว!")
-
-  # แสดงหัวข้อสรุปแผน
-  st.markdown(f"### แผนการจัดการเลือกตั้ง: {org_name}")
-  st.markdown(
-      f"- **วันที่ตำแหน่งว่างลง:** {vacancy_date.strftime('%d %B %Y')}"
-  )
-  st.markdown(
-      f"- **วันรับสมัคร:** {start_reg.strftime('%d %B %Y')} ถึง"
-      f" {end_reg.strftime('%d %B %Y')}"
-  )
-  st.markdown(f"- **วันเลือกตั้ง:** {election_date.strftime('%d %B %Y')}")
-
-  # คำนวณวันสำคัญตามกฎหมายอัตโนมัติ
-  notice_date = vacancy_date  # วันที่ถูกสั่งให้พ้นจากตำแหน่ง
-  res_decl = start_reg - datetime.timedelta(
-      days=3
-  )  # ผอ.กต.ท้องถิ่นประกาศให้มีการเลือกตั้ง / แต่งตั้ง กกต.ท้องถิ่น
-  polling_station_notice = election_date - datetime.timedelta(
-      days=20
-  )  # ประกาศกำหนดหน่วย/ที่เลือกตั้ง (ม.23)
-  voter_list_notice = election_date - datetime.timedelta(
-      days=20
-  )  # ประกาศบัญชีรายชื่อผู้มีสิทธิ (ม.43)
-  candidate_list_notice = start_reg + datetime.timedelta(
-      days=5
-  )  # ประกาศบัญชีรายชื่อผู้สมัคร (ม.52)
-  house_notice = election_date - datetime.timedelta(
-      days=10
-  )  # วันสุดท้ายส่งหนังสือแจ้งเจ้าบ้าน (ม.43)
-  setab_notice = election_date - datetime.timedelta(
-      days=15
-  )  # วันสุดท้ายแต่งตั้ง จพง.ปน. (ม.28)
-
-  st.markdown("---")
-  st.subheader("📋 สรุปกำหนดเวลาและมาตราสำคัญ (Auto-Calculated)")
-
-  milestones = [
-      {
-          "วันที่": vacancy_date.strftime("%d %B %Y"),
-          "เหตุการณ์ / ขั้นตอน": (
-              "วันที่ถูกสั่งให้พ้นจากตำแหน่ง / วันที่ตำแหน่งว่างลง"
-          ),
-          "อ้างอิง": "-",
-      },
-      {
-          "วันที่": res_decl.strftime("%d %B %Y"),
-          "เหตุการณ์ / ขั้นตอน": (
-              "ผอ.กต.ท้องถิ่นประกาศให้มีการเลือกตั้ง และแต่งตั้ง กกต.ท้องถิ่น"
-          ),
-          "อ้างอิง": "มาตรา 12",
-      },
-      {
-          "วันที่": (
-              f"{start_reg.strftime('%d %B %Y')} ถึง"
-              f" {end_reg.strftime('%d %B %Y')}"
-          ),
-          "เหตุการณ์ / ขั้นตอน": "วันรับสมัครเลือกตั้งสมาชิกสภาท้องถิ่น",
-          "อ้างอิง": "มาตรา 12",
-      },
-      {
-          "วันที่": candidate_list_notice.strftime("%d %B %Y"),
-          "เหตุการณ์ / ขั้นตอน": "วันประกาศบัญชีรายชื่อผู้สมัคร",
-          "อ้างอิง": "มาตรา 52",
-      },
-      {
-          "วันที่": polling_station_notice.strftime("%d %B %Y"),
-          "เหตุการณ์ / ขั้นตอน": (
-              "วันประกาศกำหนดหน่วยเลือกตั้ง / ที่เลือกตั้ง และเปลี่ยนแปลงหน่วย"
-          ),
-          "อ้างอิง": "มาตรา 23",
-      },
-      {
-          "วันที่": voter_list_notice.strftime("%d %B %Y"),
-          "เหตุการณ์ / ขั้นตอน": "วันประกาศบัญชีรายชื่อผู้มีสิทธิเลือกตั้ง",
-          "อ้างอิง": "มาตรา 43",
-      },
-      {
-          "วันที่": house_notice.strftime("%d %B %Y"),
-          "เหตุการณ์ / ขั้นตอน": "วันสุดท้ายส่งหนังสือแจ้งเจ้าบ้านไปยังผู้มีสิทธิ",
-          "อ้างอิง": "มาตรา 43",
-      },
-      {
-          "วันที่": election_date.strftime("%d %B %Y"),
-          "เหตุการณ์ / ขั้นตอน": (
-              "🎉 **วันเลือกตั้ง** และวันแจ้งเหตุที่ไม่อาจไปใช้สิทธิ"
-          ),
-          "อ้างอิง": "มาตรา 40",
-      },
-      {
-          "วันที่": (election_date + datetime.timedelta(days=30)).strftime(
-              "%d %B %Y"
-          ),
-          "เหตุการณ์ / ขั้นตอน": (
-              "วันประกาศผลการเลือกตั้ง (กรณีไม่มีเรื่องร้องคัดค้าน)"
-          ),
-          "อ้างอิง": "มาตรา 17 ว.1",
-      },
-  ]
-
-  df_milestones = pd.DataFrame(milestones)
-  st.table(df_milestones)
-
-  st.markdown("---")
-  st.subheader("📅 ตารางปฏิทินรถไฟ 4 เดือน (ต.ค. 2569 - ม.ค. 2570)")
-
-  # ฟังก์ชันสร้างตารางปฏิทิน
-  def render_calendar_table(year, month, month_name):
-    st.markdown(f"#### เดือน{month_name} {year + 543}")
-    num_days = calendar.monthrange(year, month)[1]
-
-    thai_wd_map = {0: "จ", 1: "อ", 2: "พ", 3: "พฤ", 4: "ศ", 5: "ส", 6: "อา"}
-    row_day_name = ["วัน"]
-    row_date_num = ["วันที่"]
-    row_vac = ["นับจากวันที่ตำแหน่งว่างลง"]
-    row_elec = ["นับจากวันเลือกตั้ง"]
-
-    for d in range(1, num_days + 1):
-      current_date = datetime.date(year, month, d)
-      wd = current_date.weekday()
-      row_day_name.append(thai_wd_map[wd])
-      row_date_num.append(str(d))
-      row_vac.append(str((current_date - vacancy_date).days + 1))
-      row_elec.append(str((current_date - election_date).days))
-
-    while len(row_date_num) < 32:
-      row_day_name.append("")
-      row_date_num.append("")
-      row_vac.append("")
-      row_elec.append("")
-
-    columns_name = ["หัวข้อ"] + [str(i) for i in range(1, 32)]
-    df_data = [
-        [row_day_name[0]] + row_day_name[1:32],
-        [row_date_num[0]] + row_date_num[1:32],
-        [row_vac[0]] + row_vac[1:32],
-        [row_elec[0]] + row_elec[1:32],
-    ]
-
-    df = pd.DataFrame(df_data, columns=columns_name)
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-  # แสดงตารางทั้ง 4 เดือน
-  render_calendar_table(2026, 10, "ตุลาคม")
-  render_calendar_table(2026, 11, "พฤศจิกายน")
-  render_calendar_table(2026, 12, "ธันวาคม")
-  render_calendar_table(2027, 1, "มกราคม")
+# บันทึกรูปภาพออกมา
+plt.savefig("election_train_table.png", dpi=300, bbox_inches="tight")
+plt.show()
+print("สร้างรูปภาพตารางรถไฟสำเร็จแล้ว ชื่อไฟล์: election_train_table.png")
