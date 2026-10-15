@@ -9,9 +9,7 @@ st.set_page_config(
 )
 
 st.title("🚂 ระบบสร้างตารางรถไฟเลือกตั้งอัตโนมัติ (กกต.)")
-st.markdown(
-    "กรอกข้อมูลด้านล่างนี้เพื่อให้ระบบสร้างตารางปฏิทิน คำนวณวัน และจัดทำตารางรถไฟให้อัตโนมัติทันทีโดยไม่ต้องจัดหน้าเอง"
-)
+st.markdown("กรอกข้อมูลกำหนดการเลือกตั้งเพื่อให้ระบบสร้างตารางรถไฟอัตโนมัติ")
 
 with st.form("election_form"):
   st.subheader("📌 กำหนดการเลือกตั้ง")
@@ -37,40 +35,45 @@ with st.form("election_form"):
         "วันสิ้นสุดรับสมัคร", value=datetime.date(2026, 10, 30)
     )
 
-  submitted = st.form_submit_button("🚀 สร้างตารางรถไฟเลือกตั้ง")
+  submitted = st.form_submit_button("🚀 สร้างตารางรถไฟ")
 
 if submitted:
-  st.success("สร้างตารางคำนวณเรียบร้อยแล้ว!")
+  st.success("สร้างตารางเรียบร้อยแล้ว!")
+  st.markdown(f"### แผนการจัดการเลือกตั้ง: {org_name}")
 
-  st.markdown(f"### ผลลัพธ์แผนการจัดการเลือกตั้ง: {org_name}")
-  st.write(f"- **วันที่ตำแหน่งว่างลง:** {vacancy_date.strftime('%d %B %Y')}")
-  st.write(
-      "- **วันรับสมัคร:**"
-      f" {start_reg_date.strftime('%d %B %Y')} ถึง"
-      f" {end_reg_date.strftime('%d %B %Y')}"
-  )
-  st.write(f"- **วันเลือกตั้ง:** {election_date.strftime('%d %B %Y')}")
+  # ฟังก์ชันช่วยสร้างตารางปฏิทินรายเดือน
+  def render_calendar_table(year, month, month_name, vacancy_date, election_date):
+    st.markdown(f"#### เดือน{month_name} {year + 543}")
+    
+    # หาวันทั้งหมดในเดือนนั้น
+    import calendar
+    cal = calendar.monthcalendar(year, month)
+    days_header = ["วัน", "พฤ", "ศ", "ส", "อา", "จ", "อ", "พ", "พฤ", "ศ", "ส", "อา", "จ", "อ", "พ", "พฤ", "ศ", "ส", "อา", "จ", "อ", "พ", "พฤ", "ศ", "ส", "อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"]
+    
+    # สร้างตารางจำลองรายวัน
+    data_days = []
+    data_vacancy = []
+    data_election = []
+    
+    # หาจำนวนวันในเดือน
+    num_days = calendar.monthrange(year, month)[1]
+    
+    row_days = ["วันที่"]
+    row_vac = ["นับจากวันที่ตำแหน่งว่างลง"]
+    row_elec = ["นับจากวันเลือกตั้ง"]
+    
+    for d in range(1, num_days + 1):
+      current_date = datetime.date(year, month, d)
+      row_days.append(str(d))
+      row_vac.append(str((current_date - vacancy_date).days + 1))
+      row_elec.append(str((current_date - election_date).days))
+      
+    df_display = pd.DataFrame([row_days[1:], row_vac[1:], row_elec[1:]], 
+                              columns=[str(i) for i in range(1, num_days + 1)],
+                              index=["วันที่", "นับจากวันที่ตำแหน่งว่างลง", "นับจากวันเลือกตั้ง"])
+    
+    st.dataframe(df_display, use_container_width=True)
 
-  # ตัวอย่างการคำนวณวันถอยหลัง / เดินหน้า
-  st.markdown("---")
-  st.subheader("📅 ตารางปฏิทินและห้วงเวลาการปฏิบัติงาน")
-
-  # สร้างตารางจำลองเดือนตุลาคม 2569 เป็นตัวอย่างแสดงผล
-  days_in_oct = []
-  for day in range(1, 32):
-    d = datetime.date(2026, 10, day)
-    days_in_oct.append({
-        "วันที่": day,
-        "วันในสัปดาห์": d.strftime("%a"),
-        "นับจากวันว่าง": (d - vacancy_date).days + 1,
-        "นับจากวันเลือกตั้ง": (d - election_date).days,
-    })
-
-  df_oct = pd.DataFrame(days_in_oct)
-  st.markdown("#### เดือนตุลาคม 2569")
-  st.dataframe(df_oct.T, use_container_width=True)
-
-  st.info(
-      "💡 ระบบกำลังถูกพัฒนาต่อยอดให้แสดงผลเป็นตารางปฏิทินแนวนอนพร้อมลูกศรชี้"
-      "ตามแบบฟอร์มทางการของสำนักงาน กกต."
-  )
+  # แสดงตารางเดือนตุลาคม และ พฤศจิกายน
+  render_calendar_table(2026, 10, "ตุลาคม", vacancy_date, election_date)
+  render_calendar_table(2026, 11, "พฤศจิกายน", vacancy_date, election_date)
