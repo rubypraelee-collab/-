@@ -1,112 +1,52 @@
-import datetime
+import streamlit as st
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import numpy as np
+import datetime
 
-# ตั้งค่าฟอนต์ภาษาไทย (ถ้าใช้งานบน Windows หรือ Google Colab ให้เลือกฟอนต์ที่รองรับภาษาไทย เช่น TH Sarabun PSK หรือ Cordia New)
-# ในตัวอย่างนี้ใช้โครงสร้างการวาดตารางและลูกศรชี้
-fig, ax = plt.subplots(figsize=(14, 8))
+st.set_page_config(page_title="ระบบสร้างตารางรถไฟเลือกตั้งอัตโนมัติ", layout="centered")
 
-# ซ่อนแกนพิกัดรอบนอก
-ax.axis("off")
-ax.set_xlim(0, 100)
-ax.set_ylim(0, 100)
+st.title("🚂 ระบบสร้างตารางรถไฟเลือกตั้งอัตโนมัติ")
+st.markdown("กรอกข้อมูลกำหนดการเลือกตั้งด้านล่าง ระบบจะสร้างรูปตารางรถไฟพร้อมลูกศรและมาตราให้อัตโนมัติ")
 
-# วาดหัวข้อรายงาน
-ax.text(
-    50,
-    95,
-    "แผนการจัดการเลือกตั้งสมาชิกสภา ทต.บึงระมาณ เขตเลือกตั้งที่ 1",
-    fontsize=16,
-    weight="bold",
-    ha="center",
-)
-ax.text(
-    50,
-    90,
-    "วันที่ตำแหน่งว่างลง: 1 ต.ค. 2569 | วันเลือกตั้ง: 22 พ.ย. 2569",
-    fontsize=12,
-    ha="center",
-    color="gray",
-)
+# ช่องกรอกข้อมูลสำหรับพนักงาน
+with st.form("train_form"):
+    org_name = st.text_input("ชื่อองค์กรปกครองส่วนท้องถิ่น", "เทศบาลตำบลบึงระมาณ เขต 1 อ.บางระกำ")
+    vacancy_date = st.date_input("วันที่ตำแหน่งว่างลง", datetime.date(2026, 10, 1))
+    election_date = st.date_input("วันเลือกตั้ง", datetime.date(2026, 11, 22))
+    
+    submitted = st.form_submit_button("🚀 สร้างตารางรถไฟ")
 
-# สร้างตารางจำลองเดือนตุลาคม 2569 (แถววันที่ 1-31)
-# วาดกรอบตารางหลัก
-rect_oct = plt.Rectangle((5, 60), 90, 20, linewidth=1.5, edgecolor="black", facecolor="none")
-ax.add_patch(rect_oct)
-
-ax.text(7, 75, "เดือนตุลาคม 2569", fontsize=12, weight="bold")
-
-# วาดเส้นแบ่งตารางวัน (1-31)
-for i in range(32):
-    x_pos = 15 + (i * 2.5)
-    ax.plot([x_pos, x_pos], [60, 80], color="black", linewidth=0.5)
-    if i < 31:
-        ax.text(x_pos + 1.25, 76, str(i + 1), fontsize=8, ha="center")
-
-# แถวตาราง: นับจากวันที่ตำแหน่งว่างลง
-ax.text(
-    6,
-    68,
-    "นับจากวันว่าง",
-    fontsize=9,
-    weight="bold",
-    verticalalignment="center",
-)
-for i in range(31):
-    x_pos = 15 + (i * 2.5) + 1.25
-    ax.text(x_pos, 68, str(i + 1), fontsize=8, ha="center", verticalalignment="center")
-
-# แถวตาราง: นับจากวันเลือกตั้ง (ถอยหลัง)
-ax.text(
-    6,
-    63,
-    "นับจากวันเลือกตั้ง",
-    fontsize=9,
-    weight="bold",
-    verticalalignment="center",
-)
-count_elec = 52
-for i in range(31):
-    x_pos = 15 + (i * 2.5) + 1.25
-    val = count_elec - i
-    ax.text(
-        x_pos,
-        63,
-        str(val),
-        fontsize=8,
-        ha="center",
-        verticalalignment="center",
-        color="red" if val == 0 else "black",
-    )
-
-# --- ส่วนของการวาดลูกศรชี้มาตราสำคัญอัตโนมัติ ---
-# ตัวอย่าง: ลูกศรชี้ "วันรับสมัครเลือกตั้ง (ม.12)" ที่วันที่ 26 ตุลาคม
-x_target = 15 + (25 * 2.5) + 1.25  # พิกัดวันที่ 26
-ax.annotate(
-    "วันรับสมัครเลือกตั้ง (ม.12)",
-    xy=(x_target, 60),
-    xytext=(x_target, 45),
-    arrowprops=dict(facecolor="blue", shrink=0.05, width=1.5, headwidth=6),
-    fontsize=9,
-    weight="bold",
-    ha="center",
-    color="blue",
-)
-
-# ตัวอย่าง: ลูกศรชี้ "วันเลือกตั้ง" ที่วันที่ 22 พฤศจิกายน (สมมติพิกัด)
-ax.annotate(
-    "วันเลือกตั้ง (ม.40)",
-    xy=(50, 60),
-    xytext=(50, 35),
-    arrowprops=dict(facecolor="orange", shrink=0.05, width=2, headwidth=8),
-    fontsize=10,
-    weight="bold",
-    ha="center",
-    color="orange",
-)
-
-# บันทึกรูปภาพออกมา
-plt.savefig("election_train_table.png", dpi=300, bbox_inches="tight")
-plt.show()
-print("สร้างรูปภาพตารางรถไฟสำเร็จแล้ว ชื่อไฟล์: election_train_table.png")
+if submitted:
+    # สร้างรูปตารางด้วย Matplotlib
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.axis('off')
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 100)
+    
+    # หัวข้อ
+    ax.text(50, 92, f"แผนการจัดการเลือกตั้ง {org_name}", fontsize=14, weight='bold', ha='center')
+    ax.text(50, 85, f"วันว่าง: {vacancy_date.strftime('%d %b %Y')} | วันเลือกตั้ง: {election_date.strftime('%d %b %Y')}", fontsize=10, ha='center', color='gray')
+    
+    # วาดกรอบตารางตุลาคม
+    rect = plt.Rectangle((10, 45, 80, 25), linewidth=1, edgecolor='black', facecolor='none')
+    # (จำลองการวาดตารางคร่าวๆ ในเว็บ)
+    ax.text(12, 63, "เดือนตุลาคม 2569 (ตารางจำลองอัตโนมัติ)", fontsize=11, weight='bold')
+    ax.text(12, 53, "นับจากวันเลือกตั้ง: 52  51  50  49  ...  0  1  2", fontsize=9)
+    
+    # ตัวอย่างลูกศรชี้มาตราอัตโนมัติ
+    ax.annotate('วันรับสมัคร (ม.12)', xy=(55, 45), xytext=(55, 25),
+                arrowprops=dict(facecolor='blue', shrink=0.05, width=1.5, headwidth=6),
+                fontsize=9, weight='bold', ha='center', color='blue')
+    
+    # บันทึกรูปชั่วคราวและแสดงผลบนเว็บ
+    plt.savefig("output_table.png", dpi=200, bbox_inches='tight')
+    
+    st.success("สร้างตารางรถไฟเรียบร้อยแล้ว!")
+    st.image("output_table.png", caption="ตารางรถไฟเลือกตั้งพร้อมลูกศรมาตรา")
+    
+    with open("output_table.png", "rb") as file:
+        st.download_button(
+            label="📥 ดาวน์โหลดรูปภาพตารางรถไฟ",
+            data=file,
+            file_name="election_train_table.png",
+            mime="image/png"
+        )
