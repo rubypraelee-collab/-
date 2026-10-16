@@ -146,7 +146,6 @@ if submitted:
       vac_cnt = (curr_dt - d_dismiss).days + 1
       elec_cnt = (curr_dt - d_election).days
 
-      # ตรวจสอบว่าวันนี้มีเหตุการณ์สำคัญอะไรบ้างเพื่อแสดงข้อความกำกับ
       labels_top = []
       labels_bottom = []
 
@@ -166,17 +165,18 @@ if submitted:
       if curr_dt == d_house_notice:
         labels_bottom.append("แจ้งเจ้าบ้าน (ม.43)")
 
+      top_str = " | ".join(labels_top)
       top_html = (
-          "<div style='font-size:9px; color:red; font-weight:bold; height:35px;"
-          " writing-mode:vertical-lr; transform:rotate(180deg); margin:0"
-          f" auto;'>{' | '.join(labels_top)}</div>"
+          f"<div style='font-size:9px; color:red; font-weight:bold; height:35px;"
+          f" writing-mode:vertical-lr; transform:rotate(180deg); margin:0 auto;'>{top_str}</div>"
           if labels_top
           else ""
       )
+
+      bot_str = " | ".join(labels_bottom)
       bot_html = (
-          "<div style='font-size:9px; color:blue; font-weight:bold; height:35px;"
-          " writing-mode:vertical-lr; margin:0 auto;'>{' | "
-          f"'.join(labels_bottom)}</div>"
+          f"<div style='font-size:9px; color:blue; font-weight:bold; height:35px;"
+          f" writing-mode:vertical-lr; margin:0 auto;'>{bot_str}</div>"
           if labels_bottom
           else ""
       )
@@ -206,7 +206,6 @@ if submitted:
           f" color:{elec_color}; font-weight:bold; font-size:11px;'>{elec_cnt}</td>"
       )
 
-      # เก็บ HTML แถวสำหรับใส่ข้อความด้านล่าง
       day_tags[d] = bot_html
 
     bot_row = ""
@@ -249,7 +248,6 @@ if submitted:
         """
     st.markdown(html_code, unsafe_allow_html=True)
 
-  # แสดงตาราง 2 เดือนหลัก (เดือนของวันว่าง และเดือนถัดไป)
   render_train_table_html(d_dismiss.year, d_dismiss.month)
 
   next_m = d_dismiss.month + 1
