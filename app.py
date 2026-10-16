@@ -209,4 +209,52 @@ if submitted:
       # เก็บ HTML แถวสำหรับใส่ข้อความด้านล่าง
       day_tags[d] = bot_html
 
-    bot
+    bot_row = ""
+    for d in range(1, num_days + 1):
+      bot_row += (
+          f"<td style='border:1px solid #000; padding:2px; text-align:center;"
+          f" background:#f9f9f9;'>{day_tags[d]}</td>"
+      )
+
+    html_code = f"""
+        <div style="margin-bottom: 30px; overflow-x: auto;">
+            <h4 style="margin-bottom: 8px; color: #333;">เดือน{month_names_th[m]} {y + 543}</h4>
+            <table style="border-collapse: collapse; width: 100%; font-family: sans-serif; background-color: white;">
+                <tr>
+                    <td style="border:1px solid #000; padding:6px; background-color:#ddd; width:220px; font-weight:bold; font-size:12px;">กิจกรรม / ลูกศรชี้</td>
+                    {days_row}
+                </tr>
+                <tr>
+                    <td style="border:1px solid #000; padding:6px; background-color:#ddd; font-weight:bold; font-size:12px;">วัน</td>
+                    {dates_row}
+                </tr>
+                <tr>
+                    <td style="border:1px solid #000; padding:6px; background-color:#ddd; font-weight:bold; font-size:12px;">วันที่</td>
+                    {dates_row}
+                </tr>
+                <tr>
+                    <td style="border:1px solid #000; padding:6px; background-color:#ddd; font-weight:bold; font-size:12px;">นับจากวันที่ถูกสั่งให้พ้นจากตำแหน่ง</td>
+                    {vac_row}
+                </tr>
+                <tr>
+                    <td style="border:1px solid #000; padding:6px; background-color:#ddd; font-weight:bold; font-size:12px;">นับจากวันเลือกตั้ง</td>
+                    {elec_row}
+                </tr>
+                <tr>
+                    <td style="border:1px solid #000; padding:6px; background-color:#ddd; font-weight:bold; font-size:12px;">รายละเอียดขั้นตอนเพิ่มเติม</td>
+                    {bot_row}
+                </tr>
+            </table>
+        </div>
+        """
+    st.markdown(html_code, unsafe_allow_html=True)
+
+  # แสดงตาราง 2 เดือนหลัก (เดือนของวันว่าง และเดือนถัดไป)
+  render_train_table_html(d_dismiss.year, d_dismiss.month)
+
+  next_m = d_dismiss.month + 1
+  next_y = d_dismiss.year
+  if next_m > 12:
+    next_m = 1
+    next_y += 1
+  render_train_table_html(next_y, next_m)
