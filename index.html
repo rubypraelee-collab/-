@@ -16,7 +16,7 @@ main{flex:1;overflow:auto;padding:16px}
 h1{font-size:18px;margin:0 0 4px}h2{font-size:14px;margin:18px 0 6px;color:var(--acc)}
 p.h{margin:0 0 8px;color:var(--mut);font-size:12.5px}
 label.f{display:block;margin:6px 0;font-size:12.5px;color:var(--mut)}
-select,input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 7px;width:100%}
+select,input,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 7px;width:100%}
 .row{border-left:4px solid var(--c);padding:4px 0 4px 8px;margin:7px 0}
 .row .t{font-size:12.5px;line-height:1.35;margin-bottom:3px}
 .row .d{display:flex;gap:6px;align-items:center}.row .d span{font-size:12px;color:var(--mut)}
@@ -28,7 +28,9 @@ button.s{background:transparent;color:var(--acc)}
 .pg svg{display:block;width:100%;height:auto}
 .empty{padding:40px;color:var(--mut);text-align:center}
 @media (max-width:820px){.app{flex-direction:column;height:auto}aside{width:100%;overflow:visible}main{overflow:visible}}
-@media print{@page{size:A4 landscape;margin:0}body{background:#fff}aside{display:none}.app,main{display:block;padding:0;overflow:visible}.pg{box-shadow:none;margin:0;page-break-after:always;max-width:none}.pg svg{width:297mm;height:209.5mm;max-width:none;max-height:none;margin:0}.pg:last-child{page-break-after:auto}}
+@page van{size:A4 portrait;margin:0}
+.pg.van{max-width:640px}
+@media print{@page{size:A4 landscape;margin:0}.pg.van{page:van;max-width:none}.pg.van svg{width:210mm!important;height:296.5mm!important}body{background:#fff}aside{display:none}.app,main{display:block;padding:0;overflow:visible}.pg{box-shadow:none;margin:0;page-break-after:always;max-width:none}.pg svg{width:297mm;height:209.5mm;max-width:none;max-height:none;margin:0}.pg:last-child{page-break-after:auto}}
 </style>
 </head>
 <body>
@@ -95,26 +97,28 @@ const AUTO={
  g17:{f:ea(15),n:'วันที่ 15 นับแต่วันเลือกตั้ง'},
  g18:{f:ea(30),n:'30 วันนับแต่วันเลือกตั้ง'},
  g19:{f:ea(60),n:'60 วันนับแต่วันเลือกตั้ง'}};
-const TYPES=[['pao','องค์การบริหารส่วนจังหวัด (อบจ.)','อบจ.'],['tn','เทศบาลนคร (ทน.)','ทน.'],['tm','เทศบาลเมือง (ทม.)','ทม.'],['tt','เทศบาลตำบล (ทต.)','ทต.'],['tao','องค์การบริหารส่วนตำบล (อบต.)','อบต.']];
+const TYPES=[['pao','องค์การบริหารส่วนจังหวัด (อบจ.)','อบจ.','องค์การบริหารส่วนจังหวัด'],['tn','เทศบาลนคร (ทน.)','ทน.','เทศบาลนคร'],['tm','เทศบาลเมือง (ทม.)','ทม.','เทศบาลเมือง'],['tt','เทศบาลตำบล (ทต.)','ทต.','เทศบาลตำบล'],['tao','องค์การบริหารส่วนตำบล (อบต.)','อบต.','องค์การบริหารส่วนตำบล']];
 const POS=[['member','สมาชิกสภา'],['head','นายก (นายก อบจ. / นายกเทศมนตรี / นายก อบต.)']];
-const DEF={type:'tt',pos:'member',name:'บึงระมาณ',zone:'1',amp:'บางระกำ',case:'removed',person:'',foot:'กลุ่มงานจัดการเลือกตั้งและการมีส่วนร่วม สนง.กกต.จว.พิษณุโลก'};
+const DEF={persons:'',prov:'พิษณุโลก',van:true,type:'tt',pos:'member',name:'บึงระมาณ',zone:'1',amp:'บางระกำ',case:'removed',person:'',foot:'กลุ่มงานจัดการเลือกตั้งและการมีส่วนร่วม สนง.กกต.จว.พิษณุโลก'};
  
 let S={meta:{},v:{},touched:{}};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem('trainsched')||'{}'))}catch(e){}
 S.meta=S.meta||{};S.v=S.v||{};S.touched=S.touched||{};
+if(S.meta.persons===undefined)S.meta.persons=S.meta.person||'';
 Object.keys(DEF).forEach(k=>{if(S.meta[k]===undefined||(k==='pos'&&!['member','head'].includes(S.meta.pos)))S.meta[k]=DEF[k]});
 const CASES=[['removed','กรณีถูกสั่งให้พ้นจากตำแหน่ง'],['dead','กรณีแทนตำแหน่งที่ว่าง — ตาย'],['resign','กรณีแทนตำแหน่งที่ว่าง — ลาออก'],['term','กรณีครบวาระ']];
 const MI=()=>{const m=S.meta,T=TYPES.find(t=>t[0]===m.type)||TYPES[3],head=m.pos==='head',org=T[2]+(m.name||''),mun=['tn','tm','tt'].includes(m.type);
   const posTitle=head?(mun?'นายกเทศมนตรี':'นายก'):'สมาชิกสภา';
   return{org,head,posTitle,zone:m.zone,pao:m.type==='pao',
    amp:m.type==='pao'||!m.amp?'':'อ.'+String(m.amp).replace(/^อ\./,''),
-   sum:`สรุปแผนการจัดการเลือกตั้ง${head?posTitle:'สมาชิก'} ${org}${head?'':` เขต ${m.zone}`}${m.type==='pao'||!m.amp?'':' อ.'+String(m.amp).replace(/^อ\./,'')}`}};
-const CI=()=>{const m=S.meta,mi=MI(),cs=m.case||'removed',why=cs==='dead'?'ตาย':'ลาออก',ps=cs==='dead'||cs==='resign',nm=m.person||'ชื่อ-สกุล';
+   sum:`สรุปแผนการจัดการเลือกตั้ง${posTitle} ${org}${head?'':` เขต ${m.zone}`}${m.type==='pao'||!m.amp?'':' อ.'+String(m.amp).replace(/^อ\./,'')}`}};
+const PN=()=>String(S.meta.persons||'').split('\n').map(x=>x.trim()).filter(Boolean);
+const CI=()=>{const m=S.meta,mi=MI(),cs=m.case||'removed',why=cs==='dead'?'ตาย':'ลาออก',ps=cs==='dead'||cs==='resign',nm=(PN().length?PN():['ชื่อ-สกุล']).join('\n');
   return{cs,lim:cs==='term'?45:60,keep:ps,
    form:{removed:'วันที่ถูกสั่งให้พ้นจากตำแหน่ง',dead:'วันที่ตำแหน่งว่างลง (ตาย)',resign:'วันที่ตำแหน่งว่างลง (ลาออก)',term:'วันที่ครบวาระ'}[cs],
    first:cs==='removed'?'วันที่ถูกสั่งให้พ้นจากตำแหน่ง':cs==='term'?'วันที่ครบวาระ':mi.head?`${nm}\n${mi.posTitle} ${mi.org}\n(${why})`:`${nm}\nส.${mi.org}\nเขตเลือกตั้งที่ ${mi.zone} (${why})`,
    sum:cs==='term'?'วันที่ครบวาระ':'วันที่ตำแหน่งว่างลง',cnt:cs==='term'?'นับจากวันที่ครบวาระ':'นับจากวันที่ตำแหน่งว่างลง',
-   title:cs==='removed'?'กรณีถูกสั่งให้พ้นจากตำแหน่ง':cs==='term'?'กรณีครบวาระ':`${m.person||''} ${why}`}};
+   title:cs==='removed'?'กรณีถูกสั่งให้พ้นจากตำแหน่ง':cs==='term'?'กรณีครบวาระ':`${PN().join(', ')} ${why}`}};
 const save=()=>{try{localStorage.setItem('trainsched',JSON.stringify(S))}catch(e){}};
 const val=(id,k)=>(S.v[id]||[])[k]||'';
 const $=q=>document.querySelector(q);
@@ -125,9 +129,11 @@ $('#meta').innerHTML=`<label class="f">กรณีการเลือกต�
 <label class="f">ประเภท อปท.<select data-m="type">${opt(TYPES,S.meta.type)}</select></label>
 <label class="f">ตำแหน่งที่เลือกตั้ง<select data-m="pos">${opt(POS,S.meta.pos)}</select></label>
 <label class="f">ชื่อ อปท. (ไม่ต้องพิมพ์ ทต./อบต. นำหน้า)<input data-m="name" value="${esc(S.meta.name)}"></label>
+<label class="f">จังหวัด (ไม่ต้องพิมพ์คำว่า จังหวัด)<input data-m="prov" value="${esc(S.meta.prov)}"></label>
 <label class="f" id="zoneRow">เขตเลือกตั้งที่<input data-m="zone" value="${esc(S.meta.zone)}"></label>
 <label class="f" id="ampRow">อำเภอ (ไม่ต้องพิมพ์ อ. นำหน้า)<input data-m="amp" value="${esc(String(S.meta.amp).replace(/^อ\./,''))}"></label>
-<label class="f" id="personRow">ชื่อ-สกุล ผู้ที่ตาย/ลาออก<input data-m="person" value="${esc(S.meta.person)}"></label>
+<label class="f" id="personRow">ชื่อ-สกุล ผู้ที่ถูกสั่งให้พ้นจากตำแหน่ง/ตาย/ลาออก (บรรทัดละ 1 คน)<textarea data-m="persons" rows="2">${esc(S.meta.persons)}</textarea></label>
+<label class="f"><input type="checkbox" data-m="van" ${S.meta.van!==false?'checked':''} style="width:auto"> สร้างตารางรถตู้ (หน้าสุดท้าย)</label>
 <label class="f">ผู้จัดทำ (ท้ายหน้า)<input data-m="foot" value="${esc(S.meta.foot)}"></label>`;
 const ORDER=['v','el'].concat(G.map(g=>g.id).filter(i=>i!=='v'&&i!=='el')).map(id=>G.find(g=>g.id===id));
 $('#steps').innerHTML=ORDER.map(g=>{
@@ -149,14 +155,14 @@ function applyAuto(){
 function showBE(){G.forEach(g=>{const a=num(val(g.id,0)),b=num(val(g.id,1));
   $('#be-'+g.id).textContent=a==null?'':`${WF[D(a).getUTCDay()]}ที่ ${fmt(a)}`+(b!=null?` – ${fmt(b)}`:'')});
   const ci=CI(),mi=MI();$('#t-v').textContent=ci.form;
-  $('#personRow').style.display=ci.keep?'':'none';$('#zoneRow').style.display=mi.head?'none':'';$('#ampRow').style.display=mi.pao?'none':'';
+  $('#personRow').style.display=ci.cs==='term'?'none':'';$('#zoneRow').style.display=mi.head?'none':'';$('#ampRow').style.display=mi.pao?'none':'';
   document.querySelectorAll('.rst').forEach(a=>a.style.display=S.touched[a.dataset.rst]?'':'none');
   const V=num(val('v',0)),E=num(val('el',0));if(V!=null&&E!=null){const n=E-V+1,bad=n>ci.lim;$('#be-el').innerHTML=($('#be-el').textContent?esc($('#be-el').textContent)+'<br>':'')+`<span style="color:${bad?'#d22':'inherit'}">วันที่ ${n} นับจากวันว่างลง · ต้องไม่เกิน ${ci.lim} วัน${bad?' ⚠ เกินกำหนด':''}</span>`}
 }
  
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.dataset.m){S.meta[t.dataset.m]=t.value}
+  if(t.dataset.m){S.meta[t.dataset.m]=t.type==='checkbox'?t.checked:t.value}
   else if(t.dataset.id){const id=t.dataset.id;(S.v[id]=S.v[id]||['',''])[+t.dataset.k]=t.value;
     if(AUTO[id]&&(id!=='reg'||+t.dataset.k===1))S.touched[id]=1;applyAuto()}
   save();showBE();draw();
@@ -170,7 +176,7 @@ $('#png').onclick=()=>{document.querySelectorAll('.pg svg').forEach((svg,i)=>{
   const x=new XMLSerializer().serializeToString(svg);
   const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=w*2;c.height=h*2;
     const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);
-    const a=document.createElement('a');a.download=`ตารางรถไฟ-หน้า${i+1}.png`;a.href=c.toDataURL('image/png');a.click()};
+    const a=document.createElement('a');a.download=`${svg.dataset.name||`ตารางรถไฟ-หน้า${i+1}`}.png`;a.href=c.toDataURL('image/png');a.click()};
   img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)})};
  
 // ---------- วาดตาราง ----------
@@ -201,7 +207,8 @@ function draw(){
   let r=build('std');
   if(months.length>1&&(r.failed||r.h>lim)){const r1=build('one');if(r.failed||(!r1.failed&&r1.h<r.h))r=r1}
   FIX=Math.max(W+2*MX,(r.h+MT+MB)*A4);
-  out.innerHTML=r.pages.map((pm,pi)=>`<div class="pg">${page(pm,pi,r.pages.length,ctx)}</div>`).join('');
+  const vanHtml=S.meta.van===false?'':`<div class="pg van">${vanPage({V,E,groups,mi,ci})}</div>`;
+  out.innerHTML=r.pages.map((pm,pi)=>`<div class="pg">${page(pm,pi,r.pages.length,ctx)}</div>`).join('')+vanHtml;
 }
 let FIX=0,HN=[];
 function block(mo,gt,c){
@@ -335,6 +342,75 @@ function page(pm,pi,np,c){
   s+=`</g><text x="${PW-MX}" y="${PH-MB+12}" text-anchor="end" font-size="10" ${TX}>${esc(S.meta.foot)} [${t.getDate()}/${t.getMonth()+1}/${t.getFullYear()}]</text></svg>`;
   return s;
 }
+// ---------- ตารางรถตู้ (หน้าสุดท้าย) ----------
+const VAN={
+ g2:[['ผอ.กต.ทถ. เสนอร่างประกาศให้มีการเลือกตั้ง']],
+ g3:[['ผอ.กต.จว. ให้ความเห็นชอบร่างประกาศให้มีการเลือกตั้ง']],
+ g4:[['ผอ.กต.ทถ.ประกาศให้มีการเลือกตั้ง  (มาตรา 12)'],['ผอ.กต.จว. แต่งตั้ง กกต.ทถ.']],
+ reg:[['วันรับสมัครรับเลือกตั้ง  (มาตรา 12)']],
+ g6:[['ประกาศกำหนดหน่วยเลือกตั้ง/ที่เลือกตั้ง (มาตรา 23)'],['ประกาศบัญชีรายชื่อผู้มีสิทธิเลือกตั้ง (มาตรา 43)']],
+ g7:[['วันสุดท้ายแต่งตั้ง กปน./รปภ. (มาตรา 28)'],['วันสุดท้ายการยื่นคำร้องคัดค้านการรับสมัคร กรณีก่อนวันเลือกตั้ง\nไม่น้อยกว่า 20 วัน (มาตรา 56)']],
+ g8:[['ประกาศบัญชีรายชื่อผู้สมัคร (มาตรา 52)']],
+ g9:[['วันสุดท้ายส่งหนังสือแจ้งเจ้าบ้าน (มาตรา 43)']],
+ g10:[['วันสุดท้ายยื่นคำร้องต่อ กกต. กรณีไม่รับสมัคร (มาตรา 55)']],
+ g11:[['วันสุดท้ายเปลี่ยนแปลงหน่วยเลือกตั้ง/ที่เลือกตั้ง (มาตรา 23)'],['วันสุดท้ายเพิ่มชื่อ ถอนชื่อ (มาตรา 44,มาตรา 45)'],['วันสุดท้ายที่ กกต.วินิจฉัยสิทธิสมัคร กรณีก่อนวันเลือกตั้ง\nไม่น้อยกว่า 10 วัน (มาตรา 56)']],
+ g12:[['วันสุดท้ายแจ้งการแต่งตั้งตัวแทนผู้สมัคร (มาตรา 58)']],
+ m40b:[['แจ้งเหตุที่ไม่อาจไปใช้สิทธิเลือกตั้ง (มาตรา 40)']],
+ el:[['วันเลือกตั้ง']],
+ m40a:[['แจ้งเหตุที่ไม่อาจไปใช้สิทธิเลือกตั้ง (มาตรา 40)']],
+ g16:[['วันสุดท้ายอบรมเจ้าพนักงานผู้ดำเนินการเลือกตั้ง/มอบวัสดุอุปกรณ์'],['วันสุดท้ายศาลอุทธรณ์/ศาลอุทธรณ์ภาควินิจฉัยสิทธิสมัคร (มาตรา 56)']],
+ g17:[['วันสุดท้ายจัดส่งบัญชีรายชื่อผู้มีสิทธิเลือกตั้ง เพื่อจัดทำบัญชีผู้ถูกจำกัดสิทธิ']],
+ g18:[['วันสุดท้ายประกาศผลการเลือกตั้ง/กรณีไม่มีเรื่องร้องเรียน (มาตรา 17 วรรค 1)']],
+ g19:[['วันสุดท้ายประกาศผลการเลือกตั้ง/กรณีมีร้องเรียน (มาตรา 17 วรรค 2)'],['วันสุดท้ายจัดทำบัญชีรายชื่อผู้ถูกจำกัดสิทธิ']]};
+const VW=794,VH=1123,VX=44,VWD=706,C1=148,C3=76,VFS=13,VLH=17;
+const wrapT=(t,maxW,f)=>{const out=[];let cur='';t.split(' ').forEach(w=>{const n=cur?cur+' '+w:w;if(cur&&tw(n,f)>maxW){out.push(cur);cur=w}else cur=n});if(cur)out.push(cur);return out};
+function vanPage(c){
+  const{V,E,groups,mi,ci}=c,m=S.meta,names=PN();
+  const blocks=[];
+  groups.slice().sort((a,b)=>a.s-b.s||a.e-b.e||G.indexOf(a.g)-G.indexOf(b.g)).forEach(x=>{
+    let its;
+    if(x.g.id==='v')its=ci.cs==='term'?[['ครบวาระการดำรงตำแหน่ง']]:(names.length?names:['ชื่อ-สกุล']).map(n=>[`${n} ${ci.cs==='removed'?'ถูกสั่งให้พ้นจากตำแหน่ง':ci.cs==='dead'?'ตาย':'ลาออก'}`]);
+    else its=VAN[x.g.id]||[];
+    const note=x.e>x.s?`${x.e-x.s+1} วัน`:'';
+    const segs=[];let a0=x.s;while(a0<=x.e){const d0=D(a0),me=Date.UTC(d0.getUTCFullYear(),d0.getUTCMonth()+1,0)/864e5,b0=Math.min(x.e,me);segs.push([a0,b0]);a0=b0+1}
+    segs.forEach(([ss,ee])=>{let b=blocks.find(q=>q.s===ss&&q.e===ee);if(!b){b={s:ss,e:ee,items:[]};blocks.push(b)}
+      its.forEach(it=>b.items.push({lines:it[0].split('\n'),note,bold:!!x.g.el}));if(x.g.el)b.bold=true});
+  });
+  blocks.sort((p,q)=>p.s-q.s||p.e-q.e);
+  const full=(TYPES.find(t=>t[0]===m.type)||TYPES[3])[3],pr=String(m.prov||'').replace(/^จังหวัด/,''),ap=String(m.amp||'').replace(/^อ\.|^อำเภอ/,'');
+  const ed=D(c.E),tl=[
+    `แผนงานการจัดการเลือกตั้ง${mi.posTitle}${full}${m.name||''}${mi.head?'':` เขตเลือกตั้งที่ ${m.zone}`}`,
+    `${mi.pao||!ap?'':`อำเภอ${ap} `}จังหวัด${pr}`,
+    `ในวัน${WF[ed.getUTCDay()]}ที่ ${ed.getUTCDate()} ${TM[ed.getUTCMonth()]} พ.ศ. ${ed.getUTCFullYear()+543}`,
+    `(${{removed:'กรณีถูกสั่งให้พ้นจากตำแหน่ง',dead:'กรณีแทนตำแหน่งที่ว่าง',resign:'กรณีแทนตำแหน่งที่ว่าง',term:'กรณีครบวาระ'}[ci.cs]})`];
+  const tfs=Math.min(15.5,15.5*(VWD-20)/Math.max(...tl.map(l=>tw(l,15.5)*1.06)));
+  let s=tl.map((l,i)=>`<text x="${VW/2}" y="${46+i*23}" text-anchor="middle" font-size="${tfs.toFixed(1)}" font-weight="700" ${TX}>${esc(l)}</text>`).join('');
+  const X1=VX+C1,X2=VX+VWD-C3,ln='stroke="#000" stroke-width="1"';
+  let y=138;
+  const cell=(x,yy,w,h,fill)=>`<rect x="${x}" y="${yy}" width="${w}" height="${h}" fill="${fill||'#fff'}" ${ln}/>`;
+  [['วัน/เดือน/ปี',VX,C1],['การดำเนินการ',X1,X2-X1],['หมายเหตุ',X2,C3]].forEach(([t,x,w])=>{s+=cell(x,y,w,26)+`<text x="${x+w/2}" y="${y+18}" text-anchor="middle" font-size="${VFS}" font-weight="700" ${TX}>${t}</text>`});
+  y+=26;let prev=null;
+  const dl=(a,b)=>{if(b===a)return sh(a);const A=D(a),B=D(b);return A.getUTCMonth()===B.getUTCMonth()&&A.getUTCFullYear()===B.getUTCFullYear()?`${A.getUTCDate()} - ${B.getUTCDate()} ${TS[A.getUTCMonth()]} ${(A.getUTCFullYear()+543)%100}`:`${sh(a)} - ${sh(b)}`};
+  blocks.forEach(b=>{
+    const d=D(b.s),mk=d.getUTCFullYear()*12+d.getUTCMonth();
+    if(mk!==prev){prev=mk;s+=cell(VX,y,VWD,24,'#D9D9D9')+`<text x="${VX+VWD/2}" y="${y+17}" text-anchor="middle" font-size="${VFS}" font-weight="700" ${TX}>${TM[d.getUTCMonth()]} ${d.getUTCFullYear()+543}</text>`;y+=24}
+    const top=y;
+    b.items.forEach(it=>{
+      const h=it.lines.length*VLH+7;
+      s+=cell(X1,y,X2-X1,h)+cell(X2,y,C3,h);
+      it.lines.forEach((l,i)=>{s+=`<text x="${X1+8+(i?tw('- ',VFS):0)}" y="${y+16+i*VLH}" font-size="${VFS}" font-weight="${it.bold?700:400}" ${TX}>${i?'':'- '}${esc(l)}</text>`});
+      if(it.note)s+=`<text x="${X2+C3/2}" y="${y+h/2+5}" text-anchor="middle" font-size="${VFS}" ${TX}>${it.note}</text>`;
+      y+=h});
+    s+=cell(VX,top,C1,y-top)+`<text x="${VX+C1/2}" y="${top+(y-top)/2+5}" text-anchor="middle" font-size="${VFS}" font-weight="${b.bold?700:400}" ${TX}>${dl(b.s,b.e)}</text>`;
+  });
+  y+=22;
+  const nt=[[`วันที่ ${fmt(c.E+90)} : วันสุดท้ายที่ผู้สมัครต้องยื่นบัญชี รายรับและรายจ่ายในการเลือกตั้ง`,'(ภายใน 90 วันนับจากวันเลือกตั้ง) (ม.62 /ข้อ 124)'],[`วันที่ ${fmt(c.E+105)} : วันสุดท้าย ผอ.กต.จว. ประกาศบัญชีรายรับและรายจ่ายในการเลือกตั้งของผู้สมัคร`,'(ภายใน 15 วันนับแต่วันครบกำหนดยื่นบัญชีใช้จ่าย) (ข้อ 125)']];
+  s+=`<text x="${VX+12}" y="${y+4}" font-size="${VFS}" font-weight="700" ${TX}>หมายเหตุ</text>`;
+  nt.forEach((parts,k)=>{s+=`<text x="${VX+92}" y="${y+4}" font-size="${VFS}" ${TX}>${k+1}.</text>`;parts.flatMap(t=>wrapT(t,VWD-130,VFS)).forEach(l=>{s+=`<text x="${VX+108}" y="${y+4}" font-size="${VFS}" ${TX}>${esc(l)}</text>`;y+=VLH});y+=3});
+  const sc=Math.min(1,(VH-24)/(y+16));
+  return `<svg xmlns="http://www.w3.org/2000/svg" data-name="ตารางรถตู้" viewBox="0 0 ${VW} ${VH}"><rect width="${VW}" height="${VH}" fill="#fff"/><g transform="translate(${((VW-VW*sc)/2).toFixed(1)},${(8*sc).toFixed(1)}) scale(${sc.toFixed(4)})">${s}</g></svg>`;
+}
+ 
 applyAuto();showBE();draw();
 if(document.fonts)document.fonts.ready.then(draw);
 </script>
