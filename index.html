@@ -240,7 +240,7 @@ function variantsOf(u){
   return{S1,F1};
 }
 function tryPlace(u,cd,Hz,P){
-  const up=cd.edge==='up',{S1,F1}=u.vs||(u.vs=variantsOf(u)),d0=u.range?40:26;
+  const up=cd.edge==='up',{S1,F1}=u.vs||(u.vs=variantsOf(u)),d0=u.range?40:28;
   const run=(V,dmax)=>{
     for(let d=d0;d<=dmax;d+=4)for(const v of V){
       if(d+v.h>Hz-16)continue;
@@ -253,14 +253,14 @@ function tryPlace(u,cd,Hz,P){
   return run(S1,Math.min(Hz-9,d0+70))||run(F1,Hz-9);
 }
 // จัดลำดับ "จากใกล้ตารางไปไกล": เลือกกล่องที่ไม่บังเส้นลูกศรของขั้นตอนที่เหลือเสมอ จึงรับประกันว่าวางได้
-function peel(list,rnd){
+function peel(list,rnd,dirOf){
   const rem=list.slice(),out=[];
   while(rem.length){
     for(let i=rem.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[rem[i],rem[j]]=[rem[j],rem[i]]}
     let pick=null;
     for(const u of rem){
       const vs=u.vs||(u.vs=variantsOf(u));
-      for(const v of vs.S1.concat(vs.F1)){
+      for(const v of vs.S1.concat(vs.F1.filter(q=>q.m===dirOf(u)))){
         const x0=v.x0-6,x1=v.x0+v.w+6;
         if(rem.every(o=>o===u||o.ln<x0||o.ln>x1)){const sc=(v.m==='s'?0:1000)+v.w;if(!pick||sc<pick.sc)pick={u,v,sc};break}
       }
@@ -272,7 +272,7 @@ function peel(list,rnd){
 }
 function layoutZones(units,H0){
   let seed=11,lastFail=null;const rnd=()=>(seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff;
-  units.forEach(u=>{u.cand0=u.cand.slice()});
+  units.forEach((u,i)=>{u.cand0=u.cand.slice();u.id=i});
   const attempt=(order,H)=>{
     const placed=H.map(()=>[]);
     for(const u of order){
@@ -283,11 +283,21 @@ function layoutZones(units,H0){
     return true};
   const grow=(order,H)=>{for(let g=0;g<90;g++){if(attempt(order,H))return true;H[lastFail.cand[0].z]+=16}return false};
   const plans=[];
-  for(let t=0;t<500&&plans.length<7;t++){
-    units.forEach(u=>{u.cand=[u.cand0[rnd()<0.5?0:1]];u.fixed=null});
+  for(let t=0;t<400&&plans.length<8;t++){
+    const dir0={};units.forEach(u=>{if(dir0[u.k]===undefined)dir0[u.k]=rnd()<0.5?'R':'L'});
+    const dirAt=(u,ci)=>ci===0?dir0[u.k]:(dir0[u.k]==='R'?'L':'R');
+    let ok=true;const asg={},cf=(r,u)=>r.range&&u.ln>r.xs+CW/2-9&&u.ln<r.xe-CW/2+9,shuf=units.slice();
+    for(let i=shuf.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[shuf[i],shuf[j]]=[shuf[j],shuf[i]]}
+    shuf.forEach(u=>{
+      if(!ok)return;
+      const vs=u.vs||(u.vs=variantsOf(u)),key=ci=>u.cand0[ci].z+u.cand0[ci].edge;
+      const can=[0,1].filter(ci=>(u.el?vs.S1.length>0:vs.F1.some(v=>v.m===dirAt(u,ci)))&&!units.some(o=>o!==u&&asg[o.id]===key(ci)&&(cf(o,u)||cf(u,o))));
+      if(!can.length){ok=false;return}
+      const ci=can[Math.floor(rnd()*can.length)];asg[u.id]=key(ci);u.cand=[u.cand0[ci]];u.fixed=null;u.dirSel=dirAt(u,ci)});
+    if(!ok)continue;
     const slots={};units.forEach(u=>{const k=u.cand[0].z+u.cand[0].edge;(slots[k]=slots[k]||[]).push(u)});
-    const order=[],fix=new Map();let ok=true;
-    for(const k in slots){const r=peel(slots[k],rnd);if(!r){ok=false;break}r.forEach(x=>{order.push(x.u);fix.set(x.u,x.v)})}
+    const order=[],fix=new Map();
+    for(const k in slots){const r=peel(slots[k],rnd,u=>u.dirSel);if(!r){ok=false;break}r.forEach(x=>{order.push(x.u);fix.set(x.u,x.v)})}
     if(ok)plans.push({asg:units.map(u=>u.cand[0]),order,fix});
   }
   const setPlan=pl=>units.forEach((u,i)=>{u.cand=[pl.asg[i]];u.fixed=pl.fix.get(u)});
