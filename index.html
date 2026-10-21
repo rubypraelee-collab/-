@@ -113,10 +113,10 @@ const MI=()=>{const m=S.meta,T=TYPES.find(t=>t[0]===m.type)||TYPES[3],head=m.pos
    amp:m.type==='pao'||!m.amp?'':'อ.'+String(m.amp).replace(/^อ\./,''),
    sum:`สรุปแผนการจัดการเลือกตั้ง${posTitle} ${org}${head?'':` เขต ${m.zone}`}${m.type==='pao'||!m.amp?'':' อ.'+String(m.amp).replace(/^อ\./,'')}`}};
 const PN=()=>String(S.meta.persons||'').split('\n').map(x=>x.trim()).filter(Boolean);
-const CI=()=>{const m=S.meta,mi=MI(),cs=m.case||'removed',why=cs==='dead'?'ตาย':'ลาออก',ps=cs==='dead'||cs==='resign',nm=(PN().length?PN():['ชื่อ-สกุล']).join('\n');
+const CI=()=>{const m=S.meta,mi=MI(),cs=m.case||'removed',why=cs==='dead'?'ตาย':cs==='resign'?'ลาออก':'ครบวาระ',ps=cs==='dead'||cs==='resign'||(cs==='term'&&PN().length>0),nm=(PN().length?PN():['ชื่อ-สกุล']).join('\n');
   return{cs,lim:cs==='term'?45:60,keep:ps,
    form:{removed:'วันที่ถูกสั่งให้พ้นจากตำแหน่ง',dead:'วันที่ตำแหน่งว่างลง (ตาย)',resign:'วันที่ตำแหน่งว่างลง (ลาออก)',term:'วันที่ครบวาระ'}[cs],
-   first:cs==='removed'?'วันที่ถูกสั่งให้พ้นจากตำแหน่ง':cs==='term'?'วันที่ครบวาระ':mi.head?`${nm}\n${mi.posTitle} ${mi.org}\n(${why})`:`${nm}\nส.${mi.org}\nเขตเลือกตั้งที่ ${mi.zone} (${why})`,
+   first:cs==='removed'?'วันที่ถูกสั่งให้พ้นจากตำแหน่ง':(cs==='term'&&!PN().length)?'วันที่ครบวาระ':mi.head?`${nm}\n${mi.posTitle} ${mi.org}\n(${why})`:`${nm}\nส.${mi.org}\nเขตเลือกตั้งที่ ${mi.zone} (${why})`,
    sum:cs==='term'?'วันที่ครบวาระ':'วันที่ตำแหน่งว่างลง',cnt:cs==='term'?'นับจากวันที่ครบวาระ':'นับจากวันที่ตำแหน่งว่างลง',
    title:cs==='removed'?'กรณีถูกสั่งให้พ้นจากตำแหน่ง':cs==='term'?'กรณีครบวาระ':`${PN().join(', ')} ${why}`}};
 const save=()=>{try{localStorage.setItem('trainsched',JSON.stringify(S))}catch(e){}};
@@ -155,7 +155,7 @@ function applyAuto(){
 function showBE(){G.forEach(g=>{const a=num(val(g.id,0)),b=num(val(g.id,1));
   $('#be-'+g.id).textContent=a==null?'':`${WF[D(a).getUTCDay()]}ที่ ${fmt(a)}`+(b!=null?` – ${fmt(b)}`:'')});
   const ci=CI(),mi=MI();$('#t-v').textContent=ci.form;
-  $('#personRow').style.display=ci.cs==='term'?'none':'';$('#zoneRow').style.display=mi.head?'none':'';$('#ampRow').style.display=mi.pao?'none':'';
+  $('#personRow').style.display='';$('#zoneRow').style.display=mi.head?'none':'';$('#ampRow').style.display=mi.pao?'none':'';
   document.querySelectorAll('.rst').forEach(a=>a.style.display=S.touched[a.dataset.rst]?'':'none');
   const V=num(val('v',0)),E=num(val('el',0));if(V!=null&&E!=null){const n=E-V+1,bad=n>ci.lim;$('#be-el').innerHTML=($('#be-el').textContent?esc($('#be-el').textContent)+'<br>':'')+`<span style="color:${bad?'#d22':'inherit'}">วันที่ ${n} นับจากวันว่างลง · ต้องไม่เกิน ${ci.lim} วัน${bad?' ⚠ เกินกำหนด':''}</span>`}
 }
@@ -184,7 +184,7 @@ const CW=25,LX=200,RH=19,BH=RH*4,W=LX+31*CW+8,FS=10,LH=14,A4=297/210,MX=44,MT=32
 const cvx=document.createElement('canvas').getContext('2d');
 const tw=(s,f=FS)=>{cvx.font=`600 ${f}px Sarabun,Tahoma,sans-serif`;return cvx.measureText(s).width};
 function draw(){
-  const ci=CI();G[0].i[0][0]=ci.first;G[0].i[0][2]=ci.keep?'keep':undefined;
+  const ci=CI();NEWS=ci.cs==='term';G[0].i[0][0]=ci.first;G[0].i[0][2]=ci.keep?'keep':undefined;
   const V=num(val('v',0)),E=num(val('el',0));
   const out=$('#out');
   if(V==null||E==null){out.innerHTML=`<div class="empty">กรอก “${ci.form}” และ “วันเลือกตั้ง” เพื่อสร้างตาราง</div>`;return}
@@ -229,32 +229,109 @@ function block(mo,gt,c){
 }
 const hit=(a,b,mx,my)=>a.x0<b.x1+mx&&b.x0<a.x1+mx&&a.y0<b.y1+my&&b.y0<a.y1+my;
 const stemHit=(ln,st,r)=>ln>r.x0-4&&ln<r.x1+4&&st[0]<r.y1+2&&st[1]>r.y0-2;
-const clash=(rs,st,ln,p)=>rs.some(a=>p.rs.some(b=>hit(a,b,10,5)))||p.rs.some(r=>stemHit(ln,st,r))||rs.some(r=>stemHit(p.ln,p.st,r))||(Math.abs(ln-p.ln)<7&&st[0]<p.st[1]&&st[1]>p.st[0]);
-let RVR=null,MIDMIN=0,MIDMAX=0,LFAIL=false;
-function tryPlace(u,cd,Hz,P){
-  const up=cd.edge==='up',cl=(x,w)=>Math.min(Math.max(x,6),W-6-w),V=[];
+const clash=(rs,st,ln,p)=>rs.some(a=>p.rs.some(b=>hit(a,b,NEWS?8:10,5)))||p.rs.some(r=>stemHit(ln,st,r))||rs.some(r=>stemHit(p.ln,p.st,r))||(Math.abs(ln-p.ln)<7&&st[0]<p.st[1]&&st[1]>p.st[0]);
+let RVR=null,MIDMIN=0,MIDMAX=0,LFAIL=false,NEWS=false;
+function variantsOf(u){
+  const cl=(x,w)=>Math.min(Math.max(x,6),W-6-w),S1=[],F1=[];
   u.lays.forEach((L,li)=>{
-    if(!u.fan){const w=L.w;[u.ln-w/2,u.ln-w*.75+8,u.ln-w*.25-8,u.ln-12,u.ln-w+12,u.ln-w*.9+10,u.ln-w*.1-10].forEach(x=>{const x0=cl(x,w);if(u.ln>=x0+8&&u.ln<=x0+w-8)V.push({m:'s',x0,w,h:L.h,li})})}
-    if(!u.el){const w=L.wf,h=L.hf;[[u.ln-3,'R'],[u.ln-w+3,'L']].forEach(([x0,m])=>{if(x0>=6&&x0+w<=W-6)V.push({m,x0,w,h,li})})}
+    if(!u.fan){const w=L.w,xc=u.ln-w/2;if(xc>=6&&xc+w<=W-6)S1.push({m:'s',x0:xc,w,h:L.h,li});else if(u.el)S1.push({m:'s',x0:cl(xc,w),w,h:L.h,li})}
+    if(!u.el){const w=L.wf,h=L.hf;[[u.ln-3,'R'],[u.ln-w+3,'L']].forEach(([x0,m])=>{if(x0>=6&&x0+w<=W-6)F1.push({m,x0,w,h,li})})}
   });
-  if(RVR)for(let i=V.length-1;i>0;i--){const j=Math.floor(RVR()*(i+1));[V[i],V[j]]=[V[j],V[i]]}
-  const d0=u.range?40:26;
-  for(let d=d0;d<=Hz-9;d+=4)for(const v of V){
-    if(d+v.h>Hz-16)continue;
-    const y0=up?Hz-d-v.h:d,F={x0:v.x0,x1:v.x0+v.w,y0,y1:y0+v.h},st=up?[F.y1,Hz]:[0,F.y0],rs=[F];
-    if(u.range){const a=u.xs+CW/2-3,b=u.xe-CW/2+3;rs.push(up?{x0:a,x1:b,y0:Hz-22,y1:Hz}:{x0:a,x1:b,y0:0,y1:22})}
-    if(!P.some(p=>clash(rs,st,u.ln,p)))return{d,F,st,rs,ln:u.ln,mode:v.m,li:v.li};
+  return{S1,F1};
+}
+function tryPlace(u,cd,Hz,P){
+  const up=cd.edge==='up',{S1,F1}=u.vs||(u.vs=variantsOf(u)),d0=u.range?40:26;
+  const run=(V,dmax)=>{
+    for(let d=d0;d<=dmax;d+=4)for(const v of V){
+      if(d+v.h>Hz-16)continue;
+      const y0=up?Hz-d-v.h:d,F={x0:v.x0,x1:v.x0+v.w,y0,y1:y0+v.h},st=up?[F.y1,Hz]:[0,F.y0],rs=[F];
+      if(u.range){const a=u.xs+CW/2-3,b=u.xe-CW/2+3;rs.push(up?{x0:a,x1:b,y0:Hz-22,y1:Hz}:{x0:a,x1:b,y0:0,y1:22})}
+      if(!P.some(p=>clash(rs,st,u.ln,p)))return{d,F,st,rs,ln:u.ln,mode:v.m,li:v.li};
+    }
+    return null};
+  if(u.fixed)return run([u.fixed],Hz-9);
+  return run(S1,Math.min(Hz-9,d0+70))||run(F1,Hz-9);
+}
+// จัดลำดับ "จากใกล้ตารางไปไกล": เลือกกล่องที่ไม่บังเส้นลูกศรของขั้นตอนที่เหลือเสมอ จึงรับประกันว่าวางได้
+function peel(list,rnd){
+  const rem=list.slice(),out=[];
+  while(rem.length){
+    for(let i=rem.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[rem[i],rem[j]]=[rem[j],rem[i]]}
+    let pick=null;
+    for(const u of rem){
+      const vs=u.vs||(u.vs=variantsOf(u));
+      for(const v of vs.S1.concat(vs.F1)){
+        const x0=v.x0-6,x1=v.x0+v.w+6;
+        if(rem.every(o=>o===u||o.ln<x0||o.ln>x1)){const sc=(v.m==='s'?0:1000)+v.w;if(!pick||sc<pick.sc)pick={u,v,sc};break}
+      }
+    }
+    if(!pick)return null;
+    out.push(pick);rem.splice(rem.indexOf(pick.u),1);
   }
-  return null;
+  return out;
 }
 function layoutZones(units,H0){
+  let seed=11,lastFail=null;const rnd=()=>(seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff;
+  units.forEach(u=>{u.cand0=u.cand.slice()});
+  const attempt=(order,H)=>{
+    const placed=H.map(()=>[]);
+    for(const u of order){
+      const cd=u.cand[0],r=tryPlace(u,cd,H[cd.z],placed[cd.z]);
+      if(!r){lastFail=u;return false}
+      placed[cd.z].push(r);u.pl=Object.assign({z:cd.z,edge:cd.edge},r);
+    }
+    return true};
+  const grow=(order,H)=>{for(let g=0;g<90;g++){if(attempt(order,H))return true;H[lastFail.cand[0].z]+=16}return false};
+  const plans=[];
+  for(let t=0;t<500&&plans.length<7;t++){
+    units.forEach(u=>{u.cand=[u.cand0[rnd()<0.5?0:1]];u.fixed=null});
+    const slots={};units.forEach(u=>{const k=u.cand[0].z+u.cand[0].edge;(slots[k]=slots[k]||[]).push(u)});
+    const order=[],fix=new Map();let ok=true;
+    for(const k in slots){const r=peel(slots[k],rnd);if(!r){ok=false;break}r.forEach(x=>{order.push(x.u);fix.set(x.u,x.v)})}
+    if(ok)plans.push({asg:units.map(u=>u.cand[0]),order,fix});
+  }
+  const setPlan=pl=>units.forEach((u,i)=>{u.cand=[pl.asg[i]];u.fixed=pl.fix.get(u)});
+  let best=null;
+  plans.forEach(pl=>{setPlan(pl);const H=H0.slice();if(grow(pl.order,H)){const sum=H.reduce((a,b)=>a+b,0);if(!best||sum<best.sum)best={pl,H,sum}}});
+  if(best){
+    setPlan(best.pl);const H=best.H.slice(),order=best.pl.order;
+    for(const st of[16,6])for(let z=0;z<H.length;z++)while(H[z]-st>=H0[z]){H[z]-=st;if(!attempt(order,H)){H[z]+=st;break}}
+    attempt(order,H);return H;
+  }
+  LFAIL=true;units.forEach(u=>{u.cand=u.cand0;u.fixed=null});
+  const H=H0.slice();
+  units.forEach(u=>{const z=u.cand[0].z,x0=Math.min(Math.max(u.fan?u.ln-3:u.ln-u.w/2,6),W-6-u.w),y0=H[z]-12-u.h,F={x0,x1:x0+u.w,y0,y1:y0+u.h};
+    u.pl={z,edge:'up',d:12,F,ln:u.ln,mode:u.fan?'R':'s',li:0,rs:[F],st:[F.y1,H[z]]}});
+  return H;
+}
+// ตัวจัดวางแบบเดิม (ใช้กับกรณีที่ไม่ใช่ครบวาระ)
+function tryPlaceOld(u,cd,Hz,P){
+  const up=cd.edge==='up',cl=(x,w)=>Math.min(Math.max(x,6),W-6-w),S1=[],F1=[];
+  u.lays.forEach((L,li)=>{
+    if(!u.fan){const w=L.w,xc=u.ln-w/2;if(xc>=6&&xc+w<=W-6)S1.push({m:'s',x0:xc,w,h:L.h,li});else if(u.el)S1.push({m:'s',x0:cl(xc,w),w,h:L.h,li})}
+    if(!u.el){const w=L.wf,h=L.hf;[[u.ln-3,'R'],[u.ln-w+3,'L']].forEach(([x0,m])=>{if(x0>=6&&x0+w<=W-6)F1.push({m,x0,w,h,li})})}
+  });
+  const shuf=A=>{if(RVR)for(let i=A.length-1;i>0;i--){const j=Math.floor(RVR()*(i+1));[A[i],A[j]]=[A[j],A[i]]}};
+  shuf(S1);shuf(F1);
+  const d0=u.range?40:26;
+  const run=(V,dmax)=>{
+    for(let d=d0;d<=dmax;d+=4)for(const v of V){
+      if(d+v.h>Hz-16)continue;
+      const y0=up?Hz-d-v.h:d,F={x0:v.x0,x1:v.x0+v.w,y0,y1:y0+v.h},st=up?[F.y1,Hz]:[0,F.y0],rs=[F];
+      if(u.range){const a=u.xs+CW/2-3,b=u.xe-CW/2+3;rs.push(up?{x0:a,x1:b,y0:Hz-22,y1:Hz}:{x0:a,x1:b,y0:0,y1:22})}
+      if(!P.some(p=>clash(rs,st,u.ln,p)))return{d,F,st,rs,ln:u.ln,mode:v.m,li:v.li};
+    }
+    return null};
+  return run(S1,Math.min(Hz-9,d0+70))||run(F1,Hz-9);
+}
+function layoutZonesOld(units,H0){
   let seed=7,lastFail=null;const rnd=()=>(seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff;
   const base=[units.slice().sort((a,b)=>b.h*b.w-a.h*a.w),units.slice().sort((a,b)=>a.w-b.w)];
   const attempt=(order,H)=>{
     const placed=H.map(()=>[]);
     for(const u of order){
       let best=null;
-      for(const cd of u.cand){const r=tryPlace(u,cd,H[cd.z],placed[cd.z]);if(r&&(!best||r.d<best.r.d))best={cd,r}}
+      for(const cd of u.cand){const r=tryPlaceOld(u,cd,H[cd.z],placed[cd.z]);if(r&&(!best||r.d<best.r.d))best={cd,r}}
       if(!best){lastFail=u;return false}
       placed[best.cd.z].push(best.r);u.pl=Object.assign({z:best.cd.z,edge:best.cd.edge},best.r);
     }
@@ -293,11 +370,13 @@ function page(pm,pi,np,c){
         if(fan){L.w=L.wf;L.h=hf}else{const fs=FS,lh=el?16:LH;L.lh=lh;L.fs=fs;L.w=Math.max(...its[0].lines.map(l=>tw(l,fs)))+(el?30:16);L.h=its[0].lines.length*lh+(el?10:4)}
         return L};
       u.lays=[mkLay(false)];if(items.some(i=>i.l1.join('|')!==i.l2.join('|')))u.lays.push(mkLay(true));
+      const nar=items.map(i=>({col:i.col,l1:i.l1,l2:wrapT(i.l1.join(' '),125,FS)}));
+      if(NEWS&&nar.some(i=>i.l2.length>1&&tw(i.l1.join(' '))>135)){const sv=items.map(i=>i.l2);items.forEach((i,k)=>i.l2=nar[k].l2);const L=mkLay(true);items.forEach((i,k)=>i.l2=sv[k]);if(!u.lays.some(q=>q.its.map(t=>t.lines.join('|')).join('#')===L.its.map(t=>t.lines.join('|')).join('#')))u.lays.push(L)}
       u.w=u.lays[0].w;u.h=u.lays[0].h;
       units.push(u)});
   });
   const H0=pm.map(()=>40).concat([34]);for(let k=1;k<pm.length;k++)H0[k]=Math.max(pm.length>2?80:100,pm.length>2?Math.min(MIDMIN,120):MIDMIN);
-  const H=layoutZones(units,H0);for(let k=1;k<pm.length;k++)MIDMAX=Math.max(MIDMAX,H[k]);
+  const H=(NEWS?layoutZones:layoutZonesOld)(units,H0);for(let k=1;k<pm.length;k++)MIDMAX=Math.max(MIDMAX,H[k]);
   const zt=[],bt=[];let y=first?148:34;
   for(let z=0;z<nz;z++){zt[z]=y;y+=H[z];if(z<pm.length){bt[z]=y;y+=BH}}
   const noteH=lastp?40:0,Hn=y+noteH+8,_=HN.push(Hn),PW=FIX||Math.max(W+2*MX,(Hn+MT+MB)*A4),PH=PW/A4,ox=(PW-W)/2;
@@ -369,7 +448,7 @@ function vanPage(c){
   const blocks=[];
   groups.slice().sort((a,b)=>a.s-b.s||a.e-b.e||G.indexOf(a.g)-G.indexOf(b.g)).forEach(x=>{
     let its;
-    if(x.g.id==='v')its=ci.cs==='term'?[['ครบวาระการดำรงตำแหน่ง']]:(names.length?names:['ชื่อ-สกุล']).map(n=>[`${n} ${ci.cs==='removed'?'ถูกสั่งให้พ้นจากตำแหน่ง':ci.cs==='dead'?'ตาย':'ลาออก'}`]);
+    if(x.g.id==='v')its=(ci.cs==='term'&&!names.length)?[['ครบวาระการดำรงตำแหน่ง']]:(names.length?names:['ชื่อ-สกุล']).map(n=>[`${n} ${ci.cs==='removed'?'ถูกสั่งให้พ้นจากตำแหน่ง':ci.cs==='dead'?'ตาย':ci.cs==='resign'?'ลาออก':'ครบวาระ'}`]);
     else its=VAN[x.g.id]||[];
     const note=x.e>x.s?`${x.e-x.s+1} วัน`:'';
     const segs=[];let a0=x.s;while(a0<=x.e){const d0=D(a0),me=Date.UTC(d0.getUTCFullYear(),d0.getUTCMonth()+1,0)/864e5,b0=Math.min(x.e,me);segs.push([a0,b0]);a0=b0+1}
