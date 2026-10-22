@@ -31,6 +31,9 @@ button.s{background:transparent;color:var(--acc)}
 @page van{size:A4 portrait;margin:0}
 .pg.van{max-width:640px}
 @media print{@page{size:A4 landscape;margin:0}.pg.van{page:van;max-width:none}.pg.van svg{width:210mm!important;height:296.5mm!important}body{background:#fff}aside{display:none}.app,main{display:block;padding:0;overflow:visible}.pg{box-shadow:none;margin:0;page-break-after:always;max-width:none}.pg svg{width:297mm;height:209.5mm;max-width:none;max-height:none;margin:0}.pg:last-child{page-break-after:auto}}
+input[type=color]{width:44px;height:26px;padding:0;border:1px solid var(--line);background:none;cursor:pointer}
+.crow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0;font-size:12.5px}.crow span{flex:1;min-width:0}
+details.cs{margin:14px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px}details.cs summary{cursor:pointer;font-weight:600;color:var(--acc)}details.cs h3{font-size:13px;margin:12px 0 4px}
 </style>
 </head>
 <body>
@@ -43,6 +46,7 @@ button.s{background:transparent;color:var(--acc)}
 <h2>วันที่แต่ละขั้นตอน</h2>
  
 <div id="steps"></div>
+<details class="cs"><summary>ปรับสี (ตัวเลือก)</summary><div id="colorBox"></div></details>
 <div class="btns"><button id="png">ดาวน์โหลด PNG</button><button id="prt">พิมพ์ / บันทึก PDF</button><button id="clr" class="s">ล้างวันที่</button></div>
 </aside>
 <main id="out"></main>
@@ -103,7 +107,10 @@ const DEF={persons:'',prov:'พิษณุโลก',van:true,type:'tt',pos:'me
  
 let S={meta:{},v:{},touched:{}};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem('trainsched')||'{}'))}catch(e){}
-S.meta=S.meta||{};S.v=S.v||{};S.touched=S.touched||{};
+S.meta=S.meta||{};S.v=S.v||{};S.touched=S.touched||{};S.colors=S.colors||{};
+const DEFPAL={head:'#D7E4BD',wknd:'#FCD5B5',elec:'#FFC000',box:'#FF0000',cntV:'#0000FF',cntE:'#FF0000',sum:'#9BBB59',arrow:'#000000',arrowR:'#C00000'};
+const pal=k=>S.colors[k]||DEFPAL[k];
+const itCol=(g,k)=>S.colors['i:'+g.id+':'+k]||g.i[k][1];
 if(S.meta.persons===undefined)S.meta.persons=S.meta.person||'';
 Object.keys(DEF).forEach(k=>{if(S.meta[k]===undefined||(k==='pos'&&!['member','head'].includes(S.meta.pos)))S.meta[k]=DEF[k]});
 const CASES=[['removed','กรณีถูกสั่งให้พ้นจากตำแหน่ง'],['dead','กรณีแทนตำแหน่งที่ว่าง — ตาย'],['resign','กรณีแทนตำแหน่งที่ว่าง — ลาออก'],['term','กรณีครบวาระ']];
@@ -143,6 +150,12 @@ $('#steps').innerHTML=ORDER.map(g=>{
   <div class="d"><input type="date" data-id="${g.id}" data-k="0" value="${val(g.id,0)}">${two?`<span>ถึง</span><input type="date" data-id="${g.id}" data-k="1" value="${val(g.id,1)}">`:''}</div>
   <div class="be" id="be-${g.id}"></div></div>`}).join('');
  
+const PL=[['head','สีหัวตาราง (วัน / ชื่อแถว)'],['wknd','สีวันเสาร์-อาทิตย์'],['elec','สีวันเลือกตั้ง'],['box','สีกรอบวันที่'],['cntV','สีตัวเลข นับจากวันที่ตำแหน่งว่างลง'],['cntE','สีตัวเลข นับจากวันเลือกตั้ง'],['sum','สีขอบกล่องสรุป'],['arrow','สีลูกศร'],['arrowR','สีลูกศรช่วงวันที่ (รับสมัคร / ม.40)']];
+function fillColors(){
+  const row=(l,a,v)=>`<div class="crow"><span>${esc(l)}</span><input type="color" ${a} value="${v}"></div>`;
+  $('#colorBox').innerHTML='<h3>สีตาราง</h3>'+PL.map(([k,l])=>row(l,`data-pal="${k}"`,pal(k))).join('')+'<h3>สีตัวหนังสือแต่ละขั้นตอน</h3>'+ORDER.flatMap(g=>g.i.map((it,k)=>row(it[0].replace(/\n/g,' '),`data-ic="${g.id}:${k}"`,itCol(g,k)))).join('')+'<div class="btns"><button class="s" id="rstc" type="button">คืนค่าสีเริ่มต้น</button></div>';
+}
+fillColors();
 function applyAuto(){
   const g=(id,k)=>num(val(id,k));
   for(const id in AUTO){
@@ -162,12 +175,15 @@ function showBE(){G.forEach(g=>{const a=num(val(g.id,0)),b=num(val(g.id,1));
  
 document.addEventListener('input',e=>{
   const t=e.target;
-  if(t.dataset.m){S.meta[t.dataset.m]=t.type==='checkbox'?t.checked:t.value}
+  if(t.dataset.pal){S.colors[t.dataset.pal]=t.value}
+  else if(t.dataset.ic){S.colors['i:'+t.dataset.ic]=t.value}
+  else if(t.dataset.m){S.meta[t.dataset.m]=t.type==='checkbox'?t.checked:t.value}
   else if(t.dataset.id){const id=t.dataset.id;(S.v[id]=S.v[id]||['',''])[+t.dataset.k]=t.value;
     if(AUTO[id]&&(id!=='reg'||+t.dataset.k===1))S.touched[id]=1;applyAuto()}
   save();showBE();draw();
 });
-document.addEventListener('click',e=>{const a=e.target.closest('.rst');if(!a)return;e.preventDefault();delete S.touched[a.dataset.rst];applyAuto();save();showBE();draw()});
+document.addEventListener('click',e=>{if(e.target.id==='rstc'){S.colors={};fillColors();save();draw();return}
+  const a=e.target.closest('.rst');if(!a)return;e.preventDefault();delete S.touched[a.dataset.rst];applyAuto();save();showBE();draw()});
 $('#clr').onclick=()=>{if(!confirm('ล้างวันที่ทั้งหมด?'))return;S.v={};S.touched={};
   document.querySelectorAll('[data-id]').forEach(el=>el.value='');save();showBE();draw()};
 $('#prt').onclick=()=>window.print();
@@ -189,7 +205,7 @@ function draw(){
   const out=$('#out');
   if(V==null||E==null){out.innerHTML=`<div class="empty">กรอก “${ci.form}” และ “วันเลือกตั้ง” เพื่อสร้างตาราง</div>`;return}
   const groups=[];
-  G.forEach(g=>{const s=num(val(g.id,0));if(s==null)return;let e=num(val(g.id,1));if(e==null||e<s||g.t==='d')e=s;groups.push({g,s,e,items:g.i})});
+  G.forEach(g=>{const s=num(val(g.id,0));if(s==null)return;let e=num(val(g.id,1));if(e==null||e<s||g.t==='d')e=s;groups.push({g,s,e,items:g.i.map((it,k)=>[it[0],itCol(g,k),it[2]])})});
   const last=Math.max(E+60,...groups.map(x=>x.e));
   const a=D(V),b=D(last),months=[];
   for(let k=a.getUTCFullYear()*12+a.getUTCMonth();k<=b.getUTCFullYear()*12+b.getUTCMonth();k++){
@@ -215,16 +231,16 @@ function block(mo,gt,c){
   const fit=(t,w)=>Math.min(10,10*w/(tw(t,10)*1.06));
   const mt='เดือน'+TM[mo.m];
   let s=`<text x="38" y="${gt+BH/2-3}" text-anchor="middle" font-size="${fit(mt,74).toFixed(1)}" font-weight="700" ${TX}>${mt}</text><text x="38" y="${gt+BH/2+12}" text-anchor="middle" font-size="10" font-weight="700" ${TX}>${mo.y+543}</text>`;
-  [['วัน',K],['วันที่',K],[c.cnt,BB],['นับจากวันเลือกตั้ง',RR]].forEach(([r,col],i)=>{
-    s+=`<rect x="80" y="${gt+i*RH}" width="${LX-80}" height="${RH}" fill="#D7E4BD" stroke="#555" stroke-width=".7"/><text x="${(80+LX)/2}" y="${gt+i*RH+13}" text-anchor="middle" font-size="${fit(r,LX-80-6).toFixed(1)}" font-weight="700" fill="${col}" ${TX}>${r}</text>`});
+  [['วัน',K],['วันที่',K],[c.cnt,pal('cntV')],['นับจากวันเลือกตั้ง',pal('cntE')]].forEach(([r,col],i)=>{
+    s+=`<rect x="80" y="${gt+i*RH}" width="${LX-80}" height="${RH}" fill="${pal('head')}" stroke="#555" stroke-width=".7"/><text x="${(80+LX)/2}" y="${gt+i*RH+13}" text-anchor="middle" font-size="${fit(r,LX-80-6).toFixed(1)}" font-weight="700" fill="${col}" ${TX}>${r}</text>`});
   for(let d=1;d<=mo.n;d++){
     const dn=mo.s+d-1,x=LX+(d-1)*CW,wd=D(dn).getUTCDay(),we=wd===0||wd===6,el=dn===c.E;
-    const f=el?'#FFC000':we?'#FCD5B5':'#fff';
+    const f=el?pal('elec'):we?pal('wknd'):'#fff';
     [WD[wd],d,dn>=c.V&&dn-c.V<c.lim?dn-c.V+1:'',dn>=c.V&&dn<=c.E+60?Math.abs(dn-c.E):''].forEach((t,i)=>{
-      s+=`<rect x="${x}" y="${gt+i*RH}" width="${CW}" height="${RH}" fill="${i===0&&!el&&!we?'#D7E4BD':f}" stroke="#555" stroke-width=".7"/><text x="${x+CW/2}" y="${gt+i*RH+13}" text-anchor="middle" font-size="10" font-weight="${el||i===0?700:400}" fill="${i===2?BB:i===3?RR:K}" ${TX}>${t}</text>`});
+      s+=`<rect x="${x}" y="${gt+i*RH}" width="${CW}" height="${RH}" fill="${i===0&&!el&&!we?pal('head'):f}" stroke="#555" stroke-width=".7"/><text x="${x+CW/2}" y="${gt+i*RH+13}" text-anchor="middle" font-size="10" font-weight="${el||i===0?700:400}" fill="${i===2?pal('cntV'):i===3?pal('cntE'):K}" ${TX}>${t}</text>`});
   }
-  c.ranges.forEach(([a,b])=>{const s0=Math.max(a,mo.s),e0=Math.min(b,mo.s+mo.n-1);if(s0<=e0)s+=`<rect x="${LX+(s0-mo.s)*CW}" y="${gt+RH}" width="${(e0-s0+1)*CW}" height="${RH}" fill="none" stroke="#FF0000" stroke-width="2.4"/>`});
-  for(let d=1;d<=mo.n;d++)if(c.singles.has(mo.s+d-1))s+=`<rect x="${LX+(d-1)*CW}" y="${gt+RH}" width="${CW}" height="${RH}" fill="none" stroke="#FF0000" stroke-width="2.4"/>`;
+  c.ranges.forEach(([a,b])=>{const s0=Math.max(a,mo.s),e0=Math.min(b,mo.s+mo.n-1);if(s0<=e0)s+=`<rect x="${LX+(s0-mo.s)*CW}" y="${gt+RH}" width="${(e0-s0+1)*CW}" height="${RH}" fill="none" stroke="${pal('box')}" stroke-width="2.4"/>`});
+  for(let d=1;d<=mo.n;d++)if(c.singles.has(mo.s+d-1))s+=`<rect x="${LX+(d-1)*CW}" y="${gt+RH}" width="${CW}" height="${RH}" fill="none" stroke="${pal('box')}" stroke-width="2.4"/>`;
   return s;
 }
 const hit=(a,b,mx,my)=>a.x0<b.x1+mx&&b.x0<a.x1+mx&&a.y0<b.y1+my&&b.y0<a.y1+my;
@@ -390,7 +406,7 @@ function page(pm,pi,np,c){
   const zt=[],bt=[];let y=first?148:34;
   for(let z=0;z<nz;z++){zt[z]=y;y+=H[z];if(z<pm.length){bt[z]=y;y+=BH}}
   const noteH=lastp?40:0,Hn=y+noteH+8,_=HN.push(Hn),PW=FIX||Math.max(W+2*MX,(Hn+MT+MB)*A4),PH=PW/A4,ox=(PW-W)/2;
-  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}"><rect width="${PW}" height="${PH}" fill="#fff"/><defs>${[K,B,Gr,R,N].map(v=>`<marker id="ar${v.slice(1)}" viewBox="0 0 8 8" refX="7" refY="4" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0L8,4L0,8z" fill="${v}"/></marker>`).join('')}</defs><g transform="translate(${ox},${MT})">`;
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}"><rect width="${PW}" height="${PH}" fill="#fff"/><defs>${[K,B,Gr,R,N,pal('arrow'),pal('arrowR')].map(v=>`<marker id="ar${v.slice(1)}" viewBox="0 0 8 8" refX="7" refY="4" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0L8,4L0,8z" fill="${v}"/></marker>`).join('')}</defs><g transform="translate(${ox},${MT})">`;
   s+=`<text x="${W/2}" y="18" text-anchor="middle" font-size="${Math.min(18,18*(W-20)/Math.max(1,tw(c.title,18)*1.06)).toFixed(1)}" font-weight="700" ${TX}>${esc(c.title)}</text>`;
   if(first){
     const g=id=>num(val(id,0)),R1=g('reg'),R2=num(val('reg',1))||R1,m=S.meta;
@@ -398,21 +414,21 @@ function page(pm,pi,np,c){
       ['วันประกาศผลการเลือกตั้งตามมาตรา 17 วรรคหนึ่ง',g('g18')?fmt(g('g18')):'-',K],['วันประกาศผลการเลือกตั้งตามมาตรา 17 วรรคสอง',g('g19')?fmt(g('g19')):'-',K]];
     const head=c.sumHead;
     const vx=40+Math.max(...rows.map(r=>tw('- '+r[0])))+18,bw=Math.max(vx+Math.max(...rows.map(r=>tw(r[1])))+24,tw(head)+60)-24;
-    s+=`<rect x="24" y="34" width="${bw}" height="100" rx="14" fill="#fff" stroke="#9BBB59" stroke-width="3"/><text x="40" y="54" font-size="10" font-weight="600" ${TX}>${esc(head)}</text>`;
+    s+=`<rect x="24" y="34" width="${bw}" height="100" rx="14" fill="#fff" stroke="${pal('sum')}" stroke-width="3"/><text x="40" y="54" font-size="10" font-weight="600" ${TX}>${esc(head)}</text>`;
     rows.forEach((r,i)=>{s+=`<text x="40" y="${74+i*14}" font-size="10" font-weight="700" fill="${r[2]}" ${TX}>- ${esc(r[0])}</text><text x="${vx}" y="${74+i*14}" font-size="10" font-weight="700" fill="${r[2]}" ${TX}>${esc(r[1])}</text>`});
   }
   pm.forEach((mo,k)=>{s+=block(mo,bt[k],c)});
   const mk=col=>`marker-end="url(#ar${col.slice(1)})"`;
   units.forEach(u=>{
     const p=u.pl,z0=zt[p.z],up=p.edge==='up',eY=up?z0+H[p.z]:z0,F=p.F,fy0=F.y0+z0,fy1=F.y1+z0,dir=up?-1:1;
-    const ac=u.range?R:K,by=eY+dir*18,tip=eY+dir*2,start=u.range?by:tip,sw=1.8;
+    const ac=u.range?pal('arrowR'):pal('arrow'),by=eY+dir*18,tip=eY+dir*2,start=u.range?by:tip,sw=1.8;
     if(u.range){const xa=u.xs+CW/2,xb=u.xe-CW/2;
       s+=`<line x1="${xa}" y1="${by}" x2="${xa}" y2="${tip}" stroke="${ac}" stroke-width="${sw}" ${mk(ac)}/><line x1="${xb}" y1="${by}" x2="${xb}" y2="${tip}" stroke="${ac}" stroke-width="${sw}" ${mk(ac)}/><line x1="${xa-sw/2}" y1="${by}" x2="${xb+sw/2}" y2="${by}" stroke="${ac}" stroke-width="${sw}"/>`}
     const L=u.lays[p.li];
     if(p.mode==='s'){
       const near=up?fy1:fy0,it=L.its[0];
       s+=`<line x1="${u.ln}" y1="${start}" x2="${u.ln}" y2="${near}" stroke="${ac}" stroke-width="${u.el?2.4:sw}" ${mk(ac)}/>`;
-      s+=`<rect x="${F.x0}" y="${fy0}" width="${L.w}" height="${L.h}" rx="${u.el?8:2}" fill="${u.el?'#FFC000':'#fff'}" ${u.el?'stroke="#000" stroke-width="2.2"':''}/>`;
+      s+=`<rect x="${F.x0}" y="${fy0}" width="${L.w}" height="${L.h}" rx="${u.el?8:2}" fill="${u.el?pal('elec'):'#fff'}" ${u.el?'stroke="#000" stroke-width="2.2"':''}/>`;
       it.lines.forEach((l,i)=>{s+=`<text x="${F.x0+L.w/2}" y="${fy0+(u.el?17:11)+i*L.lh}" text-anchor="middle" font-size="${L.fs}" font-weight="${u.el?700:600}" fill="${it.col}" ${TX}>${esc(l)}</text>`});
     }else{
       const cys=L.its.map(i=>fy0+i.top+i.ih/2),far=up?cys[0]:cys[cys.length-1],left=p.mode==='L',dr=left?-1:1;
@@ -505,4 +521,3 @@ if(document.fonts)document.fonts.ready.then(draw);
 </script>
 </body>
 </html>
-
