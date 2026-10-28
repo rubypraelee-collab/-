@@ -33,6 +33,8 @@ button.s{background:transparent;color:var(--acc)}
 @media print{@page{size:A4 landscape;margin:0}.pg.van{page:van;max-width:none}.pg.van svg{width:210mm!important;height:296.5mm!important}body{background:#fff}aside{display:none}.app,main{display:block;padding:0;overflow:visible}.pg{box-shadow:none;margin:0;page-break-after:always;max-width:none}.pg svg{width:297mm;height:209.5mm;max-width:none;max-height:none;margin:0}.pg:last-child{page-break-after:auto}}
 input[type=color]{width:44px;height:26px;padding:0;border:1px solid var(--line);background:none;cursor:pointer}
 .crow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0;font-size:12.5px}.crow span{flex:1;min-width:0}
+#steps .d input[type=date]{flex:1;min-width:0;width:auto}#steps .d input[type=color]{width:36px;height:32px;flex:none}
+.it{display:flex;align-items:center;gap:6px;margin:3px 0}.it input[type=color]{width:30px;height:22px;flex:none}
 details.cs{margin:14px 0;border:1px solid var(--line);border-radius:6px;padding:6px 10px}details.cs summary{cursor:pointer;font-weight:600;color:var(--acc)}details.cs h3{font-size:13px;margin:12px 0 4px}
 </style>
 </head>
@@ -145,15 +147,16 @@ $('#meta').innerHTML=`<label class="f">กรณีการเลือกต�
 const ORDER=['v','el'].concat(G.map(g=>g.id).filter(i=>i!=='v'&&i!=='el')).map(id=>G.find(g=>g.id===id));
 $('#steps').innerHTML=ORDER.map(g=>{
   const two=g.t==='r',A=AUTO[g.id],note=A?`อัตโนมัติ: ${A.n}`:g.id==='el'?'วันสำคัญ — กรอกก่อน ขั้นตอนอื่นจะคำนวณวันที่ให้':'';
-  return `<div class="row" style="--c:${g.i[0][1]}"><div class="t" id="t-${g.id}">${esc(g.i.map(x=>x[0]).join(' / ').replace(/\n/g,' '))}</div>
+  return `<div class="row" style="--c:${itCol(g,0)}"><div class="t" id="t-${g.id}">${g.i.length>1?g.i.map((x,k)=>`<div class="it"><input type="color" data-ic="${g.id}:${k}" value="${itCol(g,k)}" title="เลือกสีตัวหนังสือ"> ${esc(x[0].replace(/\n/g,' '))}</div>`).join(''):esc(g.i[0][0].replace(/\n/g,' '))}</div>
   ${note?`<div class="be">${esc(note)} <a href="#" class="rst" data-rst="${g.id}" style="display:none">↺ ใช้ค่าอัตโนมัติ</a></div>`:''}
-  <div class="d"><input type="date" data-id="${g.id}" data-k="0" value="${val(g.id,0)}">${two?`<span>ถึง</span><input type="date" data-id="${g.id}" data-k="1" value="${val(g.id,1)}">`:''}</div>
+  <div class="d"><input type="date" data-id="${g.id}" data-k="0" value="${val(g.id,0)}">${two?`<span>ถึง</span><input type="date" data-id="${g.id}" data-k="1" value="${val(g.id,1)}">`:''}${g.i.length>1?'':`<input type="color" data-ic="${g.id}:0" value="${itCol(g,0)}" title="เลือกสีตัวหนังสือ">`}</div>
   <div class="be" id="be-${g.id}"></div></div>`}).join('');
 
 const PL=[['head','สีหัวตาราง (วัน / ชื่อแถว)'],['wknd','สีวันเสาร์-อาทิตย์'],['elec','สีวันเลือกตั้ง'],['box','สีกรอบวันที่'],['cntV','สีตัวเลข นับจากวันที่ตำแหน่งว่างลง'],['cntE','สีตัวเลข นับจากวันเลือกตั้ง'],['sum','สีขอบกล่องสรุป'],['arrow','สีลูกศร'],['arrowR','สีลูกศรช่วงวันที่ (รับสมัคร / ม.40)']];
+const syncIc=()=>{document.querySelectorAll('[data-ic]').forEach(i=>{const[id,k]=i.dataset.ic.split(':'),g=G.find(x=>x.id===id);i.value=itCol(g,+k);if(+k===0){const r=i.closest('.row');if(r)r.style.setProperty('--c',itCol(g,0))}})};
 function fillColors(){
   const row=(l,a,v,id)=>`<div class="crow"><span${id?` id="${id}"`:''}>${esc(l)}</span><input type="color" ${a} value="${v}"></div>`;
-  $('#colorBox').innerHTML='<h3>สีตาราง</h3>'+PL.map(([k,l])=>row(l,`data-pal="${k}"`,pal(k))).join('')+'<h3>สีตัวหนังสือแต่ละขั้นตอน</h3>'+ORDER.flatMap(g=>g.i.map((it,k)=>g.id==='v'?row(CI().form,`data-ic="${g.id}:${k}"`,itCol(g,k),'cl-v'):row(it[0].replace(/\n/g,' '),`data-ic="${g.id}:${k}"`,itCol(g,k)))).join('')+'<div class="btns"><button class="s" id="rstc" type="button">คืนค่าสีเริ่มต้น</button></div>';
+  $('#colorBox').innerHTML='<h3>สีตาราง</h3>'+PL.map(([k,l])=>row(l,`data-pal="${k}"`,pal(k))).join('')+'<div class="btns"><button class="s" id="rstc" type="button">คืนค่าสีเริ่มต้น</button></div>';
 }
 fillColors();
 function applyAuto(){
@@ -167,7 +170,7 @@ function applyAuto(){
 }
 function showBE(){G.forEach(g=>{const a=num(val(g.id,0)),b=num(val(g.id,1));
   $('#be-'+g.id).textContent=a==null?'':`${WF[D(a).getUTCDay()]}ที่ ${fmt(a)}`+(b!=null?` – ${fmt(b)}`:'')});
-  const ci=CI(),mi=MI();$('#t-v').textContent=ci.form;if($('#cl-v'))$('#cl-v').textContent=ci.form;
+  const ci=CI(),mi=MI();$('#t-v').textContent=ci.form;
   $('#personRow').style.display='';$('#zoneRow').style.display=mi.head?'none':'';$('#ampRow').style.display=mi.pao?'none':'';
   document.querySelectorAll('.rst').forEach(a=>a.style.display=S.touched[a.dataset.rst]?'':'none');
   const V=num(val('v',0)),E=num(val('el',0));if(V!=null&&E!=null){const n=E-V+1,bad=n>ci.lim;$('#be-el').innerHTML=($('#be-el').textContent?esc($('#be-el').textContent)+'<br>':'')+`<span style="color:${bad?'#d22':'inherit'}">วันที่ ${n} นับจากวันว่างลง · ต้องไม่เกิน ${ci.lim} วัน${bad?' ⚠ เกินกำหนด':''}</span>`}
@@ -176,13 +179,13 @@ function showBE(){G.forEach(g=>{const a=num(val(g.id,0)),b=num(val(g.id,1));
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.pal){S.colors[t.dataset.pal]=t.value}
-  else if(t.dataset.ic){S.colors['i:'+t.dataset.ic]=t.value}
+  else if(t.dataset.ic){S.colors['i:'+t.dataset.ic]=t.value;syncIc()}
   else if(t.dataset.m){S.meta[t.dataset.m]=t.type==='checkbox'?t.checked:t.value}
   else if(t.dataset.id){const id=t.dataset.id;(S.v[id]=S.v[id]||['',''])[+t.dataset.k]=t.value;
     if(AUTO[id]&&(id!=='reg'||+t.dataset.k===1))S.touched[id]=1;applyAuto()}
   save();showBE();draw();
 });
-document.addEventListener('click',e=>{if(e.target.id==='rstc'){S.colors={};fillColors();save();draw();return}
+document.addEventListener('click',e=>{if(e.target.id==='rstc'){S.colors={};fillColors();syncIc();save();draw();return}
   const a=e.target.closest('.rst');if(!a)return;e.preventDefault();delete S.touched[a.dataset.rst];applyAuto();save();showBE();draw()});
 $('#clr').onclick=()=>{if(!confirm('ล้างวันที่ทั้งหมด?'))return;S.v={};S.touched={};
   document.querySelectorAll('[data-id]').forEach(el=>el.value='');save();showBE();draw()};
