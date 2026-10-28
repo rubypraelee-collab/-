@@ -40,11 +40,11 @@ details.cs{margin:14px 0;border:1px solid var(--line);border-radius:6px;padding:
 <div class="app">
 <aside>
 <h1>ตารางรถไฟการเลือกตั้ง</h1>
- 
+
 <h2>ข้อมูลหน่วยงาน</h2>
 <div id="meta"></div>
 <h2>วันที่แต่ละขั้นตอน</h2>
- 
+
 <div id="steps"></div>
 <details class="cs"><summary>ปรับสี (ตัวเลือก)</summary><div id="colorBox"></div></details>
 <div class="btns"><button id="png">ดาวน์โหลด PNG</button><button id="prt">พิมพ์ / บันทึก PDF</button><button id="clr" class="s">ล้างวันที่</button></div>
@@ -62,7 +62,7 @@ const D=n=>new Date(n*864e5);
 const fmt=n=>{const d=D(n);return `${d.getUTCDate()} ${TM[d.getUTCMonth()]} ${d.getUTCFullYear()+543}`};
 const sh=n=>{const d=D(n);return `${d.getUTCDate()} ${TS[d.getUTCMonth()]} ${(d.getUTCFullYear()+543)%100}`};
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
- 
+
 const BB='#0000FF',RR='#FF0000',K='#000000',B='#0000CC',Gr='#008000',R='#C00000',N='#000099';
 const G=[
 {id:'v',t:'d',i:[['วันที่ถูกสั่งให้พ้นจากตำแหน่ง',B]]},
@@ -104,7 +104,7 @@ const AUTO={
 const TYPES=[['pao','องค์การบริหารส่วนจังหวัด (อบจ.)','อบจ.','องค์การบริหารส่วนจังหวัด'],['tn','เทศบาลนคร (ทน.)','ทน.','เทศบาลนคร'],['tm','เทศบาลเมือง (ทม.)','ทม.','เทศบาลเมือง'],['tt','เทศบาลตำบล (ทต.)','ทต.','เทศบาลตำบล'],['tao','องค์การบริหารส่วนตำบล (อบต.)','อบต.','องค์การบริหารส่วนตำบล']];
 const POS=[['member','สมาชิกสภา'],['head','นายก (นายก อบจ. / นายกเทศมนตรี / นายก อบต.)']];
 const DEF={persons:'',prov:'พิษณุโลก',van:true,type:'tt',pos:'member',name:'บึงระมาณ',zone:'1',amp:'บางระกำ',case:'removed',person:'',foot:'กลุ่มงานจัดการเลือกตั้งและการมีส่วนร่วม สนง.กกต.จว.พิษณุโลก'};
- 
+
 let S={meta:{},v:{},touched:{}};
 try{S=Object.assign(S,JSON.parse(localStorage.getItem('trainsched')||'{}'))}catch(e){}
 S.meta=S.meta||{};S.v=S.v||{};S.touched=S.touched||{};S.colors=S.colors||{};
@@ -129,7 +129,7 @@ const CI=()=>{const m=S.meta,mi=MI(),cs=m.case||'removed',why=cs==='dead'?'ต�
 const save=()=>{try{localStorage.setItem('trainsched',JSON.stringify(S))}catch(e){}};
 const val=(id,k)=>(S.v[id]||[])[k]||'';
 const $=q=>document.querySelector(q);
- 
+
 // ---------- ฟอร์ม ----------
 const opt=(arr,cur)=>arr.map(c=>`<option value="${c[0]}"${cur===c[0]?' selected':''}>${c[1]}</option>`).join('');
 $('#meta').innerHTML=`<label class="f">กรณีการเลือกตั้ง<select data-m="case">${opt(CASES,S.meta.case)}</select></label>
@@ -149,11 +149,11 @@ $('#steps').innerHTML=ORDER.map(g=>{
   ${note?`<div class="be">${esc(note)} <a href="#" class="rst" data-rst="${g.id}" style="display:none">↺ ใช้ค่าอัตโนมัติ</a></div>`:''}
   <div class="d"><input type="date" data-id="${g.id}" data-k="0" value="${val(g.id,0)}">${two?`<span>ถึง</span><input type="date" data-id="${g.id}" data-k="1" value="${val(g.id,1)}">`:''}</div>
   <div class="be" id="be-${g.id}"></div></div>`}).join('');
- 
+
 const PL=[['head','สีหัวตาราง (วัน / ชื่อแถว)'],['wknd','สีวันเสาร์-อาทิตย์'],['elec','สีวันเลือกตั้ง'],['box','สีกรอบวันที่'],['cntV','สีตัวเลข นับจากวันที่ตำแหน่งว่างลง'],['cntE','สีตัวเลข นับจากวันเลือกตั้ง'],['sum','สีขอบกล่องสรุป'],['arrow','สีลูกศร'],['arrowR','สีลูกศรช่วงวันที่ (รับสมัคร / ม.40)']];
 function fillColors(){
-  const row=(l,a,v)=>`<div class="crow"><span>${esc(l)}</span><input type="color" ${a} value="${v}"></div>`;
-  $('#colorBox').innerHTML='<h3>สีตาราง</h3>'+PL.map(([k,l])=>row(l,`data-pal="${k}"`,pal(k))).join('')+'<h3>สีตัวหนังสือแต่ละขั้นตอน</h3>'+ORDER.flatMap(g=>g.i.map((it,k)=>row(it[0].replace(/\n/g,' '),`data-ic="${g.id}:${k}"`,itCol(g,k)))).join('')+'<div class="btns"><button class="s" id="rstc" type="button">คืนค่าสีเริ่มต้น</button></div>';
+  const row=(l,a,v,id)=>`<div class="crow"><span${id?` id="${id}"`:''}>${esc(l)}</span><input type="color" ${a} value="${v}"></div>`;
+  $('#colorBox').innerHTML='<h3>สีตาราง</h3>'+PL.map(([k,l])=>row(l,`data-pal="${k}"`,pal(k))).join('')+'<h3>สีตัวหนังสือแต่ละขั้นตอน</h3>'+ORDER.flatMap(g=>g.i.map((it,k)=>g.id==='v'?row(CI().form,`data-ic="${g.id}:${k}"`,itCol(g,k),'cl-v'):row(it[0].replace(/\n/g,' '),`data-ic="${g.id}:${k}"`,itCol(g,k)))).join('')+'<div class="btns"><button class="s" id="rstc" type="button">คืนค่าสีเริ่มต้น</button></div>';
 }
 fillColors();
 function applyAuto(){
@@ -167,12 +167,12 @@ function applyAuto(){
 }
 function showBE(){G.forEach(g=>{const a=num(val(g.id,0)),b=num(val(g.id,1));
   $('#be-'+g.id).textContent=a==null?'':`${WF[D(a).getUTCDay()]}ที่ ${fmt(a)}`+(b!=null?` – ${fmt(b)}`:'')});
-  const ci=CI(),mi=MI();$('#t-v').textContent=ci.form;
+  const ci=CI(),mi=MI();$('#t-v').textContent=ci.form;if($('#cl-v'))$('#cl-v').textContent=ci.form;
   $('#personRow').style.display='';$('#zoneRow').style.display=mi.head?'none':'';$('#ampRow').style.display=mi.pao?'none':'';
   document.querySelectorAll('.rst').forEach(a=>a.style.display=S.touched[a.dataset.rst]?'':'none');
   const V=num(val('v',0)),E=num(val('el',0));if(V!=null&&E!=null){const n=E-V+1,bad=n>ci.lim;$('#be-el').innerHTML=($('#be-el').textContent?esc($('#be-el').textContent)+'<br>':'')+`<span style="color:${bad?'#d22':'inherit'}">วันที่ ${n} นับจากวันว่างลง · ต้องไม่เกิน ${ci.lim} วัน${bad?' ⚠ เกินกำหนด':''}</span>`}
 }
- 
+
 document.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.pal){S.colors[t.dataset.pal]=t.value}
@@ -194,7 +194,7 @@ $('#png').onclick=()=>{document.querySelectorAll('.pg svg').forEach((svg,i)=>{
     const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);
     const a=document.createElement('a');a.download=`${svg.dataset.name||`ตารางรถไฟ-หน้า${i+1}`}.png`;a.href=c.toDataURL('image/png');a.click()};
   img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)})};
- 
+
 // ---------- วาดตาราง ----------
 const CW=25,LX=200,RH=19,BH=RH*4,W=LX+31*CW+8,FS=10,LH=14,A4=297/210,MX=44,MT=32,MB=44,TX='font-family="Sarabun,Tahoma,sans-serif"';
 const cvx=document.createElement('canvas').getContext('2d');
@@ -515,7 +515,7 @@ function vanPage(c){
   const sc=Math.min(1,(VH-24)/(y+16));
   return `<svg xmlns="http://www.w3.org/2000/svg" data-name="ตารางรถตู้" viewBox="0 0 ${VW} ${VH}"><rect width="${VW}" height="${VH}" fill="#fff"/><g transform="translate(${((VW-VW*sc)/2).toFixed(1)},${(8*sc).toFixed(1)}) scale(${sc.toFixed(4)})">${s}</g></svg>`;
 }
- 
+
 applyAuto();showBE();draw();
 if(document.fonts)document.fonts.ready.then(draw);
 </script>
