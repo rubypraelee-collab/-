@@ -49,7 +49,7 @@ details.cs{margin:14px 0;border:1px solid var(--line);border-radius:6px;padding:
 
 <div id="steps"></div>
 <details class="cs"><summary>ปรับสี (ตัวเลือก)</summary><div id="colorBox"></div></details>
-<div class="btns"><button id="png">ดาวน์โหลด PNG</button><button id="prt">พิมพ์ / บันทึก PDF</button><button id="clr" class="s">ล้างวันที่</button></div>
+<div class="btns"><button id="xls">ส่งออกเป็น Excel</button><button id="prt">พิมพ์ / บันทึก PDF</button><button id="clr" class="s">ล้างวันที่</button></div>
 </aside>
 <main id="out"></main>
 </div>
@@ -190,13 +190,7 @@ document.addEventListener('click',e=>{if(e.target.id==='rstc'){S.colors={};fillC
 $('#clr').onclick=()=>{if(!confirm('ล้างวันที่ทั้งหมด?'))return;S.v={};S.touched={};
   document.querySelectorAll('[data-id]').forEach(el=>el.value='');save();showBE();draw()};
 $('#prt').onclick=()=>window.print();
-$('#png').onclick=()=>{document.querySelectorAll('.pg svg').forEach((svg,i)=>{
-  const w=+svg.viewBox.baseVal.width,h=+svg.viewBox.baseVal.height;
-  const x=new XMLSerializer().serializeToString(svg);
-  const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=w*2;c.height=h*2;
-    const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);
-    const a=document.createElement('a');a.download=`${svg.dataset.name||`ตารางรถไฟ-หน้า${i+1}`}.png`;a.href=c.toDataURL('image/png');a.click()};
-  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)})};
+$('#xls').onclick=()=>exportXlsx();
 
 // ---------- วาดตาราง ----------
 const CW=25,LX=200,RH=19,BH=RH*4,W=LX+31*CW+8,FS=10,LH=14,A4=297/210,MX=44,MT=32,MB=44,TX='font-family="Sarabun,Tahoma,sans-serif"';
@@ -206,7 +200,7 @@ function draw(){
   const ci=CI();NEWS=ci.cs==='term';G[0].i[0][0]=ci.first;G[0].i[0][2]=ci.keep?'keep':undefined;
   const V=num(val('v',0)),E=num(val('el',0));
   const out=$('#out');
-  if(V==null||E==null){out.innerHTML=`<div class="empty">กรอก “${ci.form}” และ “วันเลือกตั้ง” เพื่อสร้างตาราง</div>`;return}
+  if(V==null||E==null){EXP=null;out.innerHTML=`<div class="empty">กรอก “${ci.form}” และ “วันเลือกตั้ง” เพื่อสร้างตาราง</div>`;return}
   const groups=[];
   G.forEach(g=>{const s=num(val(g.id,0));if(s==null)return;let e=num(val(g.id,1));if(e==null||e<s||g.t==='d')e=s;groups.push({g,s,e,items:g.i.map((it,k)=>[it[0],itCol(g,k),it[2]])})});
   const last=Math.max(E+60,...groups.map(x=>x.e));
@@ -226,8 +220,11 @@ function draw(){
   let r=build('std');
   if(months.length>1&&(r.failed||r.h>lim)){const r1=build('one');if(r.failed||(!r1.failed&&r1.h<r.h))r=r1}
   FIX=Math.max(W+2*MX,(r.h+MT+MB)*A4);
+  EXP={models:[],ctx,van:null};
+  const trainHtml=r.pages.map((pm,pi)=>{const h=page(pm,pi,r.pages.length,ctx);EXP.models.push(page.lastModel);return `<div class="pg">${h}</div>`}).join('');
   const vanHtml=S.meta.van===false?'':`<div class="pg van">${vanPage({V,E,groups,mi,ci})}</div>`;
-  out.innerHTML=r.pages.map((pm,pi)=>`<div class="pg">${page(pm,pi,r.pages.length,ctx)}</div>`).join('')+vanHtml;
+  if(S.meta.van!==false)EXP.van=vanPage.model;
+  out.innerHTML=trainHtml+vanHtml;
 }
 let FIX=0,HN=[];
 function block(mo,gt,c){
@@ -409,8 +406,10 @@ function page(pm,pi,np,c){
   const zt=[],bt=[];let y=first?148:34;
   for(let z=0;z<nz;z++){zt[z]=y;y+=H[z];if(z<pm.length){bt[z]=y;y+=BH}}
   const noteH=lastp?40:0,Hn=y+noteH+8,_=HN.push(Hn),PW=FIX||Math.max(W+2*MX,(Hn+MT+MB)*A4),PH=PW/A4,ox=(PW-W)/2;
+  const M={sh:[],tabs:[],PW,PH,ox,oy:MT};
   let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}"><rect width="${PW}" height="${PH}" fill="#fff"/><defs>${[K,B,Gr,R,N,pal('arrow'),pal('arrowR')].map(v=>`<marker id="ar${v.slice(1)}" viewBox="0 0 8 8" refX="7" refY="4" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0L8,4L0,8z" fill="${v}"/></marker>`).join('')}</defs><g transform="translate(${ox},${MT})">`;
   s+=`<text x="${W/2}" y="18" text-anchor="middle" font-size="${Math.min(18,18*(W-20)/Math.max(1,tw(c.title,18)*1.06)).toFixed(1)}" font-weight="700" ${TX}>${esc(c.title)}</text>`;
+  {const tf=Math.min(18,18*(W-20)/Math.max(1,tw(c.title,18)*1.06));M.sh.push({k:'t',x:0,y:0,w:W,h:24,al:'c',lh:24,paras:[{t:c.title,px:tf,b:1}]})}
   if(first){
     const g=id=>num(val(id,0)),R1=g('reg'),R2=num(val('reg',1))||R1,m=S.meta;
     const rows=[[c.sum,fmt(c.V),R],['วันรับสมัคร',R1!=null?`${fmt(R1)}${R2>R1?` ถึง ${fmt(R2)}`:''}`:'-',N],['วันเลือกตั้ง',`วัน${WF[D(c.E).getUTCDay()]}ที่ ${fmt(c.E)}`,Gr],
@@ -418,35 +417,44 @@ function page(pm,pi,np,c){
     const head=c.sumHead;
     const vx=40+Math.max(...rows.map(r=>tw('- '+r[0])))+18,bw=Math.max(vx+Math.max(...rows.map(r=>tw(r[1])))+24,tw(head)+60)-24;
     s+=`<rect x="24" y="34" width="${bw}" height="100" rx="14" fill="#fff" stroke="${pal('sum')}" stroke-width="3"/><text x="40" y="54" font-size="10" font-weight="600" ${TX}>${esc(head)}</text>`;
-    rows.forEach((r,i)=>{s+=`<text x="40" y="${74+i*14}" font-size="10" font-weight="700" fill="${r[2]}" ${TX}>- ${esc(r[0])}</text><text x="${vx}" y="${74+i*14}" font-size="10" font-weight="700" fill="${r[2]}" ${TX}>${esc(r[1])}</text>`});
+    M.sh.push({k:'r',x:24,y:34,w:bw,h:100,stroke:pal('sum'),sw:3,rr:14});M.sh.push({k:'t',x:40,y:44,w:tw(head)+10,h:14,al:'l',lh:14,paras:[{t:head,px:10,b:1}]});
+    rows.forEach((r,i)=>{M.sh.push({k:'t',x:40,y:64+i*14,w:tw('- '+r[0])+10,h:14,al:'l',lh:14,paras:[{t:'- '+r[0],px:10,b:1,color:r[2]}]},{k:'t',x:vx,y:64+i*14,w:tw(r[1])+10,h:14,al:'l',lh:14,paras:[{t:r[1],px:10,b:1,color:r[2]}]});s+=`<text x="40" y="${74+i*14}" font-size="10" font-weight="700" fill="${r[2]}" ${TX}>- ${esc(r[0])}</text><text x="${vx}" y="${74+i*14}" font-size="10" font-weight="700" fill="${r[2]}" ${TX}>${esc(r[1])}</text>`});
   }
-  pm.forEach((mo,k)=>{s+=block(mo,bt[k],c)});
+  pm.forEach((mo,k)=>{s+=block(mo,bt[k],c);M.tabs.push({gt:bt[k],mo})});
   const mk=col=>`marker-end="url(#ar${col.slice(1)})"`;
   units.forEach(u=>{
     const p=u.pl,z0=zt[p.z],up=p.edge==='up',eY=up?z0+H[p.z]:z0,F=p.F,fy0=F.y0+z0,fy1=F.y1+z0,dir=up?-1:1;
     const ac=u.range?pal('arrowR'):pal('arrow'),by=eY+dir*18,tip=eY+dir*2,start=u.range?by:tip,sw=1.8;
     if(u.range){const xa=u.xs+CW/2,xb=u.xe-CW/2;
+      M.sh.push({k:'l',x1:xa,y1:by,x2:xa,y2:tip,color:ac,w:sw,head:true},{k:'l',x1:xb,y1:by,x2:xb,y2:tip,color:ac,w:sw,head:true},{k:'l',x1:xa,y1:by,x2:xb,y2:by,color:ac,w:sw,head:false});
       s+=`<line x1="${xa}" y1="${by}" x2="${xa}" y2="${tip}" stroke="${ac}" stroke-width="${sw}" ${mk(ac)}/><line x1="${xb}" y1="${by}" x2="${xb}" y2="${tip}" stroke="${ac}" stroke-width="${sw}" ${mk(ac)}/><line x1="${xa-sw/2}" y1="${by}" x2="${xb+sw/2}" y2="${by}" stroke="${ac}" stroke-width="${sw}"/>`}
     const L=u.lays[p.li];
     if(p.mode==='s'){
       const near=up?fy1:fy0,it=L.its[0];
+      M.sh.push({k:'l',x1:u.ln,y1:start,x2:u.ln,y2:near,color:ac,w:u.el?2.4:sw,head:true},{k:'t',x:F.x0,y:fy0,w:L.w,h:L.h,al:'c',lh:L.lh,anchor:'ctr',paras:it.lines.map(l=>({t:l,px:L.fs,b:1,color:it.col})),fill:u.el?pal('elec'):null,stroke:u.el?'#000000':null,sw:2.2,rr:u.el?8:0});
       s+=`<line x1="${u.ln}" y1="${start}" x2="${u.ln}" y2="${near}" stroke="${ac}" stroke-width="${u.el?2.4:sw}" ${mk(ac)}/>`;
       s+=`<rect x="${F.x0}" y="${fy0}" width="${L.w}" height="${L.h}" rx="${u.el?8:2}" fill="${u.el?pal('elec'):'#fff'}" ${u.el?'stroke="#000" stroke-width="2.2"':''}/>`;
       it.lines.forEach((l,i)=>{s+=`<text x="${F.x0+L.w/2}" y="${fy0+(u.el?17:11)+i*L.lh}" text-anchor="middle" font-size="${L.fs}" font-weight="${u.el?700:600}" fill="${it.col}" ${TX}>${esc(l)}</text>`});
     }else{
       const cys=L.its.map(i=>fy0+i.top+i.ih/2),far=up?cys[0]:cys[cys.length-1],left=p.mode==='L',dr=left?-1:1;
       s+=`<line x1="${u.ln}" y1="${start}" x2="${u.ln}" y2="${far+(up?-sw/2:sw/2)}" stroke="${ac}" stroke-width="${sw}"/>`;
+      M.sh.push({k:'l',x1:u.ln,y1:start,x2:u.ln,y2:far+(up?-sw/2:sw/2),color:ac,w:sw,head:false});
       L.its.forEach((it,j)=>{
+        {const tw0=Math.max(...it.lines.map(l=>tw(l)))+8;M.sh.push({k:'l',x1:u.ln,y1:cys[j],x2:u.ln+dr*10,y2:cys[j],color:ac,w:sw,head:true},{k:'t',x:left?u.ln-14-tw0:u.ln+14,y:fy0+it.top,w:tw0,h:it.ih,al:left?'r':'l',lh:LH,anchor:'t',paras:it.lines.map(l=>({t:l,px:FS,b:1,color:it.col}))})}
         s+=`<line x1="${u.ln}" y1="${cys[j]}" x2="${u.ln+dr*10}" y2="${cys[j]}" stroke="${ac}" stroke-width="${sw}" ${mk(ac)}/>`;
         it.lines.forEach((l,i)=>{s+=`<text x="${u.ln+dr*14}" y="${fy0+it.top+11+i*LH}" text-anchor="${left?'end':'start'}" font-size="${FS}" font-weight="600" fill="${it.col}" ${TX}>${esc(l)}</text>`});
       });
     }
   });
   if(lastp){const e=c.E,b=y+18,nx=24+tw('หมายเหตุ')+12;
+    {const n1=`1. วันที่ ${fmt(e+90)} : วันสุดท้ายที่ผู้สมัครต้องยื่นบัญชีรายรับและรายจ่ายในการเลือกตั้ง (ภายใน 90 วันนับจากวันเลือกตั้ง) (ม.62 /ข้อ 124)`,n2=`2. วันที่ ${fmt(e+105)} : วันสุดท้าย ผอ.กต.จว. ประกาศบัญชีรายรับและรายจ่ายในการเลือกตั้งของผู้สมัคร (ภายใน 15 วันนับแต่วันครบกำหนดยื่นบัญชีใช้จ่าย) (ข้อ 125)`;
+      M.sh.push({k:'t',x:24,y:b+1,w:tw('หมายเหตุ')+10,h:14,al:'l',lh:14,paras:[{t:'หมายเหตุ',px:10,b:1}]},{k:'t',x:nx,y:b+2,w:tw(n1)+10,h:14,al:'l',lh:14,paras:[{t:n1,px:10,color:RR}]},{k:'t',x:nx,y:b+16,w:tw(n2)+10,h:14,al:'l',lh:14,paras:[{t:n2,px:10,color:RR}]})}
     s+=`<text x="24" y="${b+11}" font-size="10" font-weight="700" ${TX}>หมายเหตุ</text>`+
        `<text x="${nx}" y="${b+12}" font-size="10" fill="${RR}" ${TX}>1. วันที่ ${fmt(e+90)} : วันสุดท้ายที่ผู้สมัครต้องยื่นบัญชีรายรับและรายจ่ายในการเลือกตั้ง (ภายใน 90 วันนับจากวันเลือกตั้ง) (ม.62 /ข้อ 124)</text>`+
        `<text x="${nx}" y="${b+26}" font-size="10" fill="${RR}" ${TX}>2. วันที่ ${fmt(e+105)} : วันสุดท้าย ผอ.กต.จว. ประกาศบัญชีรายรับและรายจ่ายในการเลือกตั้งของผู้สมัคร (ภายใน 15 วันนับแต่วันครบกำหนดยื่นบัญชีใช้จ่าย) (ข้อ 125)</text>`}
   const t=new Date();
+  {const ft=`${S.meta.foot} [${t.getDate()}/${t.getMonth()+1}/${t.getFullYear()}]`,fw=tw(ft)+10;M.sh.push({k:'t',x:PW-MX-ox-fw,y:PH-MB+2-MT,w:fw,h:14,al:'r',lh:14,paras:[{t:ft,px:10}]})}
+  page.lastModel=M;
   s+=`</g><text x="${PW-MX}" y="${PH-MB+12}" text-anchor="end" font-size="10" ${TX}>${esc(S.meta.foot)} [${t.getDate()}/${t.getMonth()+1}/${t.getFullYear()}]</text></svg>`;
   return s;
 }
@@ -515,8 +523,165 @@ function vanPage(c){
   const nt=[[`วันที่ ${fmt(c.E+90)} : วันสุดท้ายที่ผู้สมัครต้องยื่นบัญชี รายรับและรายจ่ายในการเลือกตั้ง`,'(ภายใน 90 วันนับจากวันเลือกตั้ง) (ม.62 /ข้อ 124)'],[`วันที่ ${fmt(c.E+105)} : วันสุดท้าย ผอ.กต.จว. ประกาศบัญชีรายรับและรายจ่ายในการเลือกตั้งของผู้สมัคร`,'(ภายใน 15 วันนับแต่วันครบกำหนดยื่นบัญชีใช้จ่าย) (ข้อ 125)']];
   s+=`<text x="${VX+12}" y="${y+4}" font-size="${VFS}" font-weight="700" ${TX}>หมายเหตุ</text>`;
   nt.forEach((parts,k)=>{s+=`<text x="${VX+92}" y="${y+4}" font-size="${VFS}" ${TX}>${k+1}.</text>`;parts.flatMap(t=>wrapT(t,VWD-130,VFS)).forEach(l=>{s+=`<text x="${VX+108}" y="${y+4}" font-size="${VFS}" ${TX}>${esc(l)}</text>`;y+=VLH});y+=3});
+  vanPage.model={tl,blocks:blocks.map(b=>({label:dl(b.s,b.e),s:b.s,items:b.items,bold:b.bold})),nt};
   const sc=Math.min(1,(VH-24)/(y+16));
   return `<svg xmlns="http://www.w3.org/2000/svg" data-name="ตารางรถตู้" viewBox="0 0 ${VW} ${VH}"><rect width="${VW}" height="${VH}" fill="#fff"/><g transform="translate(${((VW-VW*sc)/2).toFixed(1)},${(8*sc).toFixed(1)}) scale(${sc.toFixed(4)})">${s}</g></svg>`;
+}
+
+// ---------- ส่งออกเป็น Excel (.xlsx) : ตาราง = ช่องเซลล์, ข้อความ/ลูกศร = กล่องข้อความและเส้นที่ลากย้ายได้ ----------
+let EXP=null;
+const PSK=1.35,XF='TH SarabunPSK',ZT=1.4,ZV=1.2;let ZF=1; // TH SarabunPSK มีตัวอักษรเล็กกว่าฟอนต์ทั่วไป จึงขยายขนาดให้ดูเท่าบนเว็บ
+const EMU=9525,esx=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'),encU=new TextEncoder();
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function zipStore(files){
+  const parts=[],cd=[];let off=0;
+  const u16=n=>[n&255,(n>>>8)&255],u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
+  files.forEach(f=>{const nm=encU.encode(f.name),d=typeof f.data==='string'?encU.encode(f.data):f.data,crc=crc32(d);
+    const lh=new Uint8Array([0x50,0x4b,3,4,...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(d.length),...u32(d.length),...u16(nm.length),...u16(0)]);
+    parts.push(lh,nm,d);
+    cd.push(new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(d.length),...u32(d.length),...u16(nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nm);
+    off+=lh.length+nm.length+d.length});
+  const cdLen=cd.reduce((a,b)=>a+b.length,0);
+  parts.push(...cd,new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(cdLen),...u32(off),0,0]));
+  return new Blob(parts,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+function Styles(){
+  const fonts=['<font><sz val="11"/><name val="Calibri"/></font>'],fills=['<fill><patternFill patternType="none"/></fill>','<fill><patternFill patternType="gray125"/></fill>'],borders=['<border><left/><right/><top/><bottom/><diagonal/></border>'],xfs=['<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'];
+  const idx=(a,x)=>{let i=a.indexOf(x);if(i<0){i=a.length;a.push(x)}return i},hx=c=>'FF'+String(c).replace('#','').toUpperCase();
+  return{
+    get(o){
+      const f=idx(fonts,`<font>${o.b?'<b/>':''}<sz val="${((o.sz||7.5)*PSK*ZF).toFixed(2)}"/><color rgb="${hx(o.color||'#000000')}"/><name val="${XF}"/><family val="2"/><charset val="222"/></font>`);
+      const fl=o.fill?idx(fills,`<fill><patternFill patternType="solid"><fgColor rgb="${hx(o.fill)}"/><bgColor indexed="64"/></patternFill></fill>`):0;
+      const sd=(n,v)=>v?`<${n} style="${v[0]}"><color rgb="${hx(v[1])}"/></${n}>`:`<${n}/>`;
+      const bo=o.bd?idx(borders,`<border>${sd('left',o.bd.l)}${sd('right',o.bd.r)}${sd('top',o.bd.t)}${sd('bottom',o.bd.b)}<diagonal/></border>`):0;
+      return idx(xfs,`<xf numFmtId="0" fontId="${f}" fillId="${fl}" borderId="${bo}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="${o.al||'center'}" vertical="${o.va||'center'}"${o.wrap?' wrapText="1"':''}/></xf>`)},
+    xml(){return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="${fills.length}">${fills.join('')}</fills><borders count="${borders.length}">${borders.join('')}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`}};
+}
+const colL=n=>{let r='';n++;while(n>0){const m=(n-1)%26;r=String.fromCharCode(65+m)+r;n=Math.floor((n-1)/26)}return r};
+function newSheet(name,port){return{name,port,cols:[],rows:[],cells:{},merges:[],shapes:[]}}
+const setCell=(sh,r,c,v,s)=>{(sh.cells[r]=sh.cells[r]||{})[c]={v,s}};
+const addRows=(sh,px)=>{while(px>0){const h=Math.min(px,400);sh.rows.push(h);px-=h}};
+function sheetXml(sh,hasDraw){
+  const rh=sh.rows.map((h,r)=>{
+    const cs=sh.cells[r]||{},cols=Object.keys(cs).map(Number).sort((a,b)=>a-b);
+    const cx=cols.map(c=>{const{v,s}=cs[c],ref=colL(c)+(r+1);
+      if(v===null||v===undefined||v==='')return `<c r="${ref}" s="${s}"/>`;
+      if(typeof v==='number')return `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+      return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${esx(v)}</t></is></c>`}).join('');
+    return `<row r="${r+1}" ht="${(h*0.75).toFixed(2)}" customHeight="1">${cx}</row>`}).join('');
+  const lastC=colL(sh.cols.length-1),last=sh.rows.length;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${lastC}${last}"/><sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>${sh.cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${(w/7).toFixed(4)}" customWidth="1"/>`).join('')}</cols><sheetData>${rh}</sheetData>${sh.merges.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}<pageMargins left="0.2" right="0.2" top="0.2" bottom="0.2" header="0" footer="0"/><pageSetup paperSize="9" orientation="${sh.port?'portrait':'landscape'}" fitToWidth="1" fitToHeight="1"/>${hasDraw?'<drawing r:id="rId1"/>':''}</worksheet>`;
+}
+// รูปร่างบน Excel
+const rgbOf=c=>String(c).replace('#','').toUpperCase();
+let ANC=null;
+function anchorX(x,y,w,h,inner){
+  const P=(cum,v)=>{let i=0;while(i<cum.length-2&&cum[i+1]<=v)i++;return[i,Math.max(0,v-cum[i])]};
+  const [c1,co1]=P(ANC.cx,x),[r1,ro1]=P(ANC.cy,y),[c2,co2]=P(ANC.cx,x+w),[r2,ro2]=P(ANC.cy,y+h),E=v=>Math.round(v*EMU);
+  return `<xdr:twoCellAnchor editAs="twoCell"><xdr:from><xdr:col>${c1}</xdr:col><xdr:colOff>${E(co1)}</xdr:colOff><xdr:row>${r1}</xdr:row><xdr:rowOff>${E(ro1)}</xdr:rowOff></xdr:from><xdr:to><xdr:col>${c2}</xdr:col><xdr:colOff>${E(co2)}</xdr:colOff><xdr:row>${r2}</xdr:row><xdr:rowOff>${E(ro2)}</xdr:rowOff></xdr:to>${inner}<xdr:clientData/></xdr:twoCellAnchor>`}
+function drawXml(shapes,sh){
+  const cum=a=>{const r=[0];a.forEach(v=>r.push(r[r.length-1]+v));return r};
+  ANC={cx:cum(sh.cols),cy:cum(sh.rows)};
+  let id=2;
+  const body=shapes.map(o=>{
+    id++;
+    const X=Math.round(o.x*EMU),Y=Math.round(o.y*EMU),Wd=Math.max(0,Math.round(o.w*EMU)),Hd=Math.max(0,Math.round(o.h*EMU));
+    if(o.k==='l'){
+      const x=Math.min(o.x1,o.x2),y=Math.min(o.y1,o.y2),w=Math.abs(o.x2-o.x1),h=Math.abs(o.y2-o.y1),fl=(o.x2<o.x1?' flipH="1"':'')+(o.y2<o.y1?' flipV="1"':'');
+      return anchorX(x,y,w,h,`<xdr:cxnSp macro=""><xdr:nvCxnSpPr><xdr:cNvPr id="${id}" name="ลูกศร ${id}"/><xdr:cNvCxnSpPr/></xdr:nvCxnSpPr><xdr:spPr><a:xfrm${fl}><a:off x="${Math.round(x*EMU)}" y="${Math.round(y*EMU)}"/><a:ext cx="${Math.round(w*EMU)}" cy="${Math.round(h*EMU)}"/></a:xfrm><a:prstGeom prst="line"><a:avLst/></a:prstGeom><a:ln w="${Math.round(o.w*EMU)}"><a:solidFill><a:srgbClr val="${rgbOf(o.color)}"/></a:solidFill>${o.head?'<a:tailEnd type="triangle" w="med" len="med"/>':''}</a:ln></xdr:spPr></xdr:cxnSp>`);
+    }
+    const geom=o.rr?`<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${Math.round(Math.min(50000,o.rr/Math.min(o.w,o.h)*100000))}"/></a:avLst></a:prstGeom>`:'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
+    const fill=o.fill?`<a:solidFill><a:srgbClr val="${rgbOf(o.fill)}"/></a:solidFill>`:'<a:noFill/>';
+    const ln=o.stroke?`<a:ln w="${Math.round(o.sw*EMU)}"><a:solidFill><a:srgbClr val="${rgbOf(o.stroke)}"/></a:solidFill></a:ln>`:'<a:ln><a:noFill/></a:ln>';
+    let tx='';
+    if(o.paras){
+      tx=`<xdr:txBody><a:bodyPr vertOverflow="overflow" horzOverflow="overflow" wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="${o.anchor||'ctr'}"/><a:lstStyle/>${o.paras.map(p=>`<a:p><a:pPr algn="${o.al==='c'?'ctr':o.al==='r'?'r':'l'}"><a:lnSpc><a:spcPts val="${Math.round((o.lh||14)*75)}"/></a:lnSpc></a:pPr><a:r><a:rPr lang="th-TH" sz="${Math.round(p.px*75*PSK)}" b="${p.b?1:0}" dirty="0"><a:solidFill><a:srgbClr val="${rgbOf(p.color||'#000000')}"/></a:solidFill><a:latin typeface="${XF}"/><a:ea typeface="${XF}"/><a:cs typeface="${XF}"/></a:rPr><a:t>${esx(p.t)}</a:t></a:r></a:p>`).join('')}</xdr:txBody>`;
+    }
+    return anchorX(o.x,o.y,o.w,o.h,`<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="${id}" name="${o.paras?'ข้อความ':'กรอบ'} ${id}"/><xdr:cNvSpPr${o.paras&&!o.stroke&&!o.fill?' txBox="1"':''}/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x="${X}" y="${Y}"/><a:ext cx="${Wd}" cy="${Hd}"/></a:xfrm>${geom}${fill}${ln}</xdr:spPr>${tx}</xdr:sp>`);
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${body}</xdr:wsDr>`;
+}
+const BD1=['thin','#555555'];
+function trainSheet(M,i,st){
+  const c=EXP.ctx,sh=newSheet(`ตารางรถไฟ หน้า ${i+1}`,false),ox=M.ox,oy=M.oy,Z=ZT;ZF=Z;
+  sh.cols=[ox,80,LX-80];for(let d=0;d<31;d++)sh.cols.push(CW);sh.cols.push(Math.max(8,M.PW-ox-LX-31*CW));sh.cols=sh.cols.map(w=>w*Z);
+  const tabs=M.tabs.slice().sort((a,b)=>a.gt-b.gt);let cur=0;const rowOf=[];
+  tabs.forEach(t=>{const y0=oy+t.gt;if(y0>cur)addRows(sh,(y0-cur)*Z);rowOf.push(sh.rows.length);for(let k=0;k<4;k++)sh.rows.push(RH*Z);cur=y0+4*RH});
+  addRows(sh,Math.max(1,M.PH-cur)*Z);
+  tabs.forEach((t,ti)=>{
+    const r0=rowOf[ti],mo=t.mo;
+    sh.merges.push(`B${r0+1}:B${r0+4}`);
+    const ms=st.get({b:1,sz:7.5,wrap:1});
+    for(let k=0;k<4;k++)setCell(sh,r0+k,1,k===0?`เดือน${TM[mo.m]}\n${mo.y+543}`:'',ms);
+    [['วัน','#000000'],['วันที่','#000000'],[c.cnt,pal('cntV')],['นับจากวันเลือกตั้ง',pal('cntE')]].forEach(([tx,col],k)=>setCell(sh,r0+k,2,tx,st.get({b:1,sz:7.5,color:col,fill:pal('head'),bd:{l:BD1,r:BD1,t:BD1,b:BD1}})));
+    const isS=d=>c.singles.has(mo.s+d-1),isR=d=>c.ranges.some(([a,b])=>mo.s+d-1>=a&&mo.s+d-1<=b),box=d=>d>=1&&d<=mo.n&&(isS(d)||isR(d));
+    const RB=['medium',pal('box')];
+    for(let d=1;d<=mo.n;d++){
+      const dn=mo.s+d-1,wd=D(dn).getUTCDay(),we=wd===0||wd===6,el=dn===c.E,fill=el?pal('elec'):we?pal('wknd'):'#FFFFFF';
+      const vals=[WD[wd],d,dn>=c.V&&dn-c.V<c.lim?dn-c.V+1:'',dn>=c.V&&dn<=c.E+60?Math.abs(dn-c.E):''];
+      vals.forEach((v,k)=>{
+        const bd={l:BD1,r:BD1,t:BD1,b:BD1};
+        if(k===1){
+          const S1=x=>x>=1&&x<=mo.n&&isS(x),R1=x=>x>=1&&x<=mo.n&&isR(x);
+          if(S1(d)||R1(d)){bd.t=RB;bd.b=RB}
+          if(S1(d)||S1(d-1)||R1(d)!==R1(d-1))bd.l=RB;
+          if(S1(d)||S1(d+1)||R1(d)!==R1(d+1))bd.r=RB;
+        }
+        setCell(sh,r0+k,3+d-1,v,st.get({sz:7.5,b:el||k===0,color:k===2?pal('cntV'):k===3?pal('cntE'):'#000000',fill:k===0&&!el&&!we?pal('head'):fill,bd}))});
+    }
+  });
+  sh.shapes=M.sh.map(o=>{const q=Object.assign({},o);if(q.k==='l'){q.x1=(q.x1+ox)*Z;q.x2=(q.x2+ox)*Z;q.y1=(q.y1+oy)*Z;q.y2=(q.y2+oy)*Z;q.w*=Z}else{q.x=(q.x+ox)*Z;q.y=(q.y+oy)*Z;q.w*=Z;q.h*=Z;if(q.sw)q.sw*=Z;if(q.rr)q.rr*=Z;if(q.lh)q.lh*=Z;if(q.paras)q.paras=q.paras.map(pp=>Object.assign({},pp,{px:pp.px*Z}))}return q});
+  sh.print=`$A$1:$${colL(sh.cols.length-1)}$${sh.rows.length}`;
+  return sh;
+}
+function vanSheet(V,st){
+  const sh=newSheet('ตารางรถตู้',true);ZF=ZV;sh.cols=[30,148,484,78,30].map(w=>w*ZV);const pushR=h=>sh.rows.push(h*ZV);
+  const T=(r,c,v,o)=>setCell(sh,r,c,v,st.get(o));
+  const bd={l:['thin','#000000'],r:['thin','#000000'],t:['thin','#000000'],b:['thin','#000000']};
+  let r=0;addRows(sh,24*ZV);
+  V.tl.forEach(l=>{pushR(28);sh.merges.push(`B${r+2}:D${r+2}`);r++;T(r,1,l,{b:1,sz:11.5});T(r,2,'',{});T(r,3,'',{})});
+  r=sh.rows.length;pushR(14);r++;
+  pushR(30);[['วัน/เดือน/ปี',1],['การดำเนินการ',2],['หมายเหตุ',3]].forEach(([t,c])=>T(r,c,t,{b:1,sz:9.75,bd}));r++;
+  let pm=null;
+  V.blocks.forEach(b=>{
+    const d=D(b.s),mk=d.getUTCFullYear()*12+d.getUTCMonth();
+    if(mk!==pm){pm=mk;pushR(28);sh.merges.push(`B${r+1}:D${r+1}`);T(r,1,`${TM[d.getUTCMonth()]} ${d.getUTCFullYear()+543}`,{b:1,sz:9.75,fill:'#D9D9D9',bd});T(r,2,'',{fill:'#D9D9D9',bd});T(r,3,'',{fill:'#D9D9D9',bd});r++}
+    const top=r;
+    b.items.forEach(it=>{pushR(it.lines.length*22+6);T(r,1,'',{bd});T(r,2,it.lines.map((l,k)=>(k?'   ':'- ')+l).join('\n'),{sz:9.75,al:'left',wrap:1,b:it.bold,bd});T(r,3,it.note,{sz:9.75,bd});r++});
+    if(b.items.length>1)sh.merges.push(`B${top+1}:B${r}`);
+    T(top,1,b.label,{sz:9.75,b:b.bold,bd,wrap:1});
+  });
+  pushR(10);r++;
+  V.nt.forEach((parts,k)=>{pushR(60);sh.merges.push(`C${r+1}:D${r+1}`);if(k===0)T(r,1,'หมายเหตุ',{b:1,sz:9.75,al:'left',va:'top'});T(r,2,`${k+1}. `+parts.join('\n'),{sz:9.75,al:'left',va:'top',wrap:1});T(r,3,'',{});r++});
+  pushR(20);
+  sh.print=`$A$1:$E$${sh.rows.length}`;
+  return sh;
+}
+function buildXlsx(){
+  const st=Styles(),sheets=EXP.models.map((M,i)=>trainSheet(M,i,st));
+  if(EXP.van)sheets.push(vanSheet(EXP.van,st));
+  const files=[];let dn=0;
+  const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>${s.shapes.length?`<Override PartName="/xl/drawings/drawing${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`:''}`).join('')}</Types>`;
+  files.push({name:'[Content_Types].xml',data:ct});
+  files.push({name:'_rels/.rels',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'});
+  files.push({name:'xl/workbook.xml',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${esx(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets><definedNames>${sheets.map((s,i)=>`<definedName name="_xlnm.Print_Area" localSheetId="${i}">'${esx(s.name)}'!${s.print}</definedName>`).join('')}</definedNames></workbook>`});
+  files.push({name:'xl/_rels/workbook.xml.rels',data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`});
+  sheets.forEach((s,i)=>{
+    files.push({name:`xl/worksheets/sheet${i+1}.xml`,data:sheetXml(s,s.shapes.length>0)});
+    if(s.shapes.length){
+      files.push({name:`xl/worksheets/_rels/sheet${i+1}.xml.rels`,data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${i+1}.xml"/></Relationships>`});
+      files.push({name:`xl/drawings/drawing${i+1}.xml`,data:drawXml(s.shapes,s)});
+    }
+  });
+  files.push({name:'xl/styles.xml',data:st.xml()});
+  return zipStore(files);
+}
+async function exportXlsx(){
+  if(!EXP)return;
+  const blob=buildXlsx(),name='ตารางรถไฟ-ตารางรถตู้.xlsx';
+  try{const dl=window.claude&&await window.claude.use('downloads');if(dl){await dl.save({filename:name,data:blob});return}}catch(e){if(e&&e.code==='declined')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
 }
 
 applyAuto();showBE();draw();
