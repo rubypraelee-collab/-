@@ -409,7 +409,7 @@ function page(pm,pi,np,c){
   const M={sh:[],tabs:[],PW,PH,ox,oy:MT};
   let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}"><rect width="${PW}" height="${PH}" fill="#fff"/><defs>${[K,B,Gr,R,N,pal('arrow'),pal('arrowR')].map(v=>`<marker id="ar${v.slice(1)}" viewBox="0 0 8 8" refX="7" refY="4" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0L8,4L0,8z" fill="${v}"/></marker>`).join('')}</defs><g transform="translate(${ox},${MT})">`;
   s+=`<text x="${W/2}" y="18" text-anchor="middle" font-size="${Math.min(18,18*(W-20)/Math.max(1,tw(c.title,18)*1.06)).toFixed(1)}" font-weight="700" ${TX}>${esc(c.title)}</text>`;
-  {const tf=Math.min(18,18*(W-20)/Math.max(1,tw(c.title,18)*1.06));M.sh.push({k:'t',x:0,y:0,w:W,h:24,al:'c',lh:24,paras:[{t:c.title,px:tf,b:1}]})}
+  {const tf=Math.min(18,18*(W-20)/Math.max(1,tw(c.title,18)*1.06));{const tbw=Math.max(W,tw(c.title,tf)*1.15+24);M.sh.push({k:'t',x:(W-tbw)/2,y:0,w:tbw,h:24,al:'c',lh:24,paras:[{t:c.title,px:tf,b:1}]})}}
   if(first){
     const g=id=>num(val(id,0)),R1=g('reg'),R2=num(val('reg',1))||R1,m=S.meta;
     const rows=[[c.sum,fmt(c.V),R],['วันรับสมัคร',R1!=null?`${fmt(R1)}${R2>R1?` ถึง ${fmt(R2)}`:''}`:'-',N],['วันเลือกตั้ง',`วัน${WF[D(c.E).getUTCDay()]}ที่ ${fmt(c.E)}`,Gr],
@@ -571,7 +571,7 @@ function sheetXml(sh,hasDraw){
       return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${esx(v)}</t></is></c>`}).join('');
     return `<row r="${r+1}" ht="${(h*0.75).toFixed(2)}" customHeight="1">${cx}</row>`}).join('');
   const lastC=colL(sh.cols.length-1),last=sh.rows.length;
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${lastC}${last}"/><sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>${sh.cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${(w/7).toFixed(4)}" customWidth="1"/>`).join('')}</cols><sheetData>${rh}</sheetData>${sh.merges.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}<pageMargins left="0.2" right="0.2" top="0.2" bottom="0.2" header="0" footer="0"/><pageSetup paperSize="9" orientation="${sh.port?'portrait':'landscape'}" fitToWidth="1" fitToHeight="1"/>${hasDraw?'<drawing r:id="rId1"/>':''}</worksheet>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${lastC}${last}"/><sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>${sh.cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${(w/7).toFixed(4)}" customWidth="1"/>`).join('')}</cols><sheetData>${rh}</sheetData>${sh.merges.length?`<mergeCells count="${sh.merges.length}">${sh.merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>`:''}<printOptions horizontalCentered="1" verticalCentered="1"/><pageMargins left="0.15" right="0.15" top="0.15" bottom="0.15" header="0" footer="0"/><pageSetup paperSize="9" orientation="${sh.port?'portrait':'landscape'}" fitToWidth="1" fitToHeight="1"/>${hasDraw?'<drawing r:id="rId1"/>':''}</worksheet>`;
 }
 // รูปร่างบน Excel
 const rgbOf=c=>String(c).replace('#','').toUpperCase();
@@ -604,11 +604,16 @@ function drawXml(shapes,sh){
 }
 const BD1=['thin','#555555'];
 function trainSheet(M,i,st){
-  const c=EXP.ctx,sh=newSheet(`ตารางรถไฟ หน้า ${i+1}`,false),ox=M.ox,oy=M.oy,Z=ZT;ZF=Z;
-  sh.cols=[ox,80,LX-80];for(let d=0;d<31;d++)sh.cols.push(CW);sh.cols.push(Math.max(8,M.PW-ox-LX-31*CW));sh.cols=sh.cols.map(w=>w*Z);
+  const c=EXP.ctx,sh=newSheet(`ตารางรถไฟ หน้า ${i+1}`,false),Z=ZT;ZF=Z;
+  // ตัดขอบว่างทิ้ง: แผ่นงานเริ่มที่กรอบเนื้อหาจริง พิมพ์แล้วตัวหนังสือจึงใหญ่ขึ้น
+  const pad=10;let bx0=0,by0=0,bx1=LX+31*CW,by1=0;
+  M.sh.forEach(o=>{if(o.k==='l'){bx0=Math.min(bx0,o.x1,o.x2);bx1=Math.max(bx1,o.x1,o.x2);by0=Math.min(by0,o.y1,o.y2);by1=Math.max(by1,o.y1,o.y2)}else{bx0=Math.min(bx0,o.x);bx1=Math.max(bx1,o.x+o.w);by0=Math.min(by0,o.y);by1=Math.max(by1,o.y+o.h)}});
+  M.tabs.forEach(t=>{by0=Math.min(by0,t.gt);by1=Math.max(by1,t.gt+4*RH)});
+  const ox=pad-bx0,oy=pad-by0,tailW=pad+bx1-(LX+31*CW),H2=by1+oy+pad,tabs0=null;
+  sh.cols=[ox,80,LX-80];for(let d=0;d<31;d++)sh.cols.push(CW);sh.cols.push(Math.max(8,tailW));sh.cols=sh.cols.map(w=>w*Z);
   const tabs=M.tabs.slice().sort((a,b)=>a.gt-b.gt);let cur=0;const rowOf=[];
   tabs.forEach(t=>{const y0=oy+t.gt;if(y0>cur)addRows(sh,(y0-cur)*Z);rowOf.push(sh.rows.length);for(let k=0;k<4;k++)sh.rows.push(RH*Z);cur=y0+4*RH});
-  addRows(sh,Math.max(1,M.PH-cur)*Z);
+  addRows(sh,Math.max(1,H2-cur)*Z);
   tabs.forEach((t,ti)=>{
     const r0=rowOf[ti],mo=t.mo;
     sh.merges.push(`B${r0+1}:B${r0+4}`);
