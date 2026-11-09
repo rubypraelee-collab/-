@@ -197,7 +197,7 @@ const CW=25,LX=200,RH=19,BH=RH*4,W=LX+31*CW+8,FS=10,LH=14,A4=297/210,MX=44,MT=32
 const cvx=document.createElement('canvas').getContext('2d');
 const tw=(s,f=FS)=>{cvx.font=`600 ${f}px Sarabun,Tahoma,sans-serif`;return cvx.measureText(s).width};
 function draw(){
-  const ci=CI();NEWS=ci.cs==='term';G[0].i[0][0]=ci.first;G[0].i[0][2]=ci.keep?'keep':undefined;
+  const ci=CI();NEWS=true;G[0].i[0][0]=ci.first;G[0].i[0][2]=ci.keep?'keep':undefined;
   const V=num(val('v',0)),E=num(val('el',0));
   const out=$('#out');
   if(V==null||E==null){EXP=null;out.innerHTML=`<div class="empty">กรอก “${ci.form}” และ “วันเลือกตั้ง” เพื่อสร้างตาราง</div>`;return}
@@ -402,10 +402,11 @@ function page(pm,pi,np,c){
       units.push(u)});
   });
   const H0=pm.map(()=>40).concat([34]);for(let k=1;k<pm.length;k++)H0[k]=Math.max(pm.length>2?80:100,pm.length>2?Math.min(MIDMIN,120):MIDMIN);
-  const H=(NEWS?layoutZones:layoutZonesOld)(units,H0);for(let k=1;k<pm.length;k++)MIDMAX=Math.max(MIDMAX,H[k]);
+  const H=(NEWS?layoutZones:layoutZonesOld)(units,H0);
+  {const us=units.filter(u=>u.pl.z===0);let sl=us.length?Math.min(...us.map(u=>u.pl.F.y0))-20:H[0]-40;sl=Math.min(sl,H[0]-30);if(sl>0){H[0]-=sl;us.forEach(u=>{const q=u.pl;q.F.y0-=sl;q.F.y1-=sl;q.st=[q.st[0]-sl,q.st[1]-sl]})}}for(let k=1;k<pm.length;k++)MIDMAX=Math.max(MIDMAX,H[k]);
   const zt=[],bt=[];let y=first?148:34;
   for(let z=0;z<nz;z++){zt[z]=y;y+=H[z];if(z<pm.length){bt[z]=y;y+=BH}}
-  const noteH=lastp?40:0,Hn=y+noteH+8,_=HN.push(Hn),PW=FIX||Math.max(W+2*MX,(Hn+MT+MB)*A4),PH=PW/A4,ox=(PW-W)/2;
+  const noteH=lastp?56:0,Hn=y+noteH+8,_=HN.push(Hn),PW=FIX||Math.max(W+2*MX,(Hn+MT+MB)*A4),PH=PW/A4,ox=(PW-W)/2;
   const M={sh:[],tabs:[],PW,PH,ox,oy:MT};
   let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}"><rect width="${PW}" height="${PH}" fill="#fff"/><defs>${[K,B,Gr,R,N,pal('arrow'),pal('arrowR')].map(v=>`<marker id="ar${v.slice(1)}" viewBox="0 0 8 8" refX="7" refY="4" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0L8,4L0,8z" fill="${v}"/></marker>`).join('')}</defs><g transform="translate(${ox},${MT})">`;
   s+=`<text x="${W/2}" y="18" text-anchor="middle" font-size="${Math.min(18,18*(W-20)/Math.max(1,tw(c.title,18)*1.06)).toFixed(1)}" font-weight="700" ${TX}>${esc(c.title)}</text>`;
