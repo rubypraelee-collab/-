@@ -299,7 +299,7 @@ function layoutZones(units,H0){
     return true};
   const grow=(order,H)=>{for(let g=0;g<90;g++){if(attempt(order,H))return true;H[lastFail.cand[0].z]+=16}return false};
   const plans=[];
-  for(let t=0;t<400&&plans.length<8;t++){
+  for(let t=0;t<700&&plans.length<30;t++){
     const dir0={};units.forEach(u=>{if(dir0[u.k]===undefined)dir0[u.k]=rnd()<0.5?'R':'L'});
     const dirAt=(u,ci)=>ci===0?dir0[u.k]:(dir0[u.k]==='R'?'L':'R');
     let ok=true;const asg={},cf=(r,u)=>r.range&&u.ln>r.xs+CW/2-9&&u.ln<r.xe-CW/2+9,shuf=units.slice();
@@ -314,11 +314,11 @@ function layoutZones(units,H0){
     const slots={};units.forEach(u=>{const k=u.cand[0].z+u.cand[0].edge;(slots[k]=slots[k]||[]).push(u)});
     const order=[],fix=new Map();
     for(const k in slots){const r=peel(slots[k],rnd,u=>u.dirSel);if(!r){ok=false;break}r.forEach(x=>{order.push(x.u);fix.set(x.u,x.v)})}
-    if(ok)plans.push({asg:units.map(u=>u.cand[0]),order,fix});
+    if(ok){const sd={};units.forEach(u=>{const k=u.k;sd[k]=sd[k]||[0,0];sd[k][u.cand[0].edge==='up'?0:1]+=u.h});const imb=Object.values(sd).reduce((a,b)=>a+Math.abs(b[0]-b[1]),0);plans.push({asg:units.map(u=>u.cand[0]),order,fix,imb})}
   }
   const setPlan=pl=>units.forEach((u,i)=>{u.cand=[pl.asg[i]];u.fixed=pl.fix.get(u)});
   let best=null;
-  plans.forEach(pl=>{setPlan(pl);const H=H0.slice();if(grow(pl.order,H)){const sum=H.reduce((a,b)=>a+b,0);if(!best||sum<best.sum)best={pl,H,sum}}});
+  plans.sort((a,b)=>a.imb-b.imb).slice(0,10).forEach(pl=>{setPlan(pl);const H=H0.slice();if(grow(pl.order,H)){const sum=H.reduce((a,b)=>a+b,0),cost=sum+0.5*pl.imb;if(!best||cost<best.sum)best={pl,H,sum:cost}}});
   if(best){
     setPlan(best.pl);const H=best.H.slice(),order=best.pl.order;
     for(const st of[16,6])for(let z=0;z<H.length;z++)while(H[z]-st>=H0[z]){H[z]-=st;if(!attempt(order,H)){H[z]+=st;break}}
@@ -695,3 +695,4 @@ if(document.fonts)document.fonts.ready.then(draw);
 </script>
 </body>
 </html>
+
